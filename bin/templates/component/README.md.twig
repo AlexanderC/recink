@@ -18,7 +18,7 @@ manage different versions of Node.js; Ideally, use v8+ for faster performance
 
 - `npm install -g recink-{{ name|lower }}`
 
-> Note that the component is installed automatically when running `recink add {{ name|lower }}`
+> Note that the component is installed automatically when running `recink component add {{ name|lower }}`
 
 
 # Configuration
@@ -36,7 +36,7 @@ $:
 `.travis.yml` configuration:
 
 ```yaml
-script: 'recink run unit -c recink-{{ name|lower }}'  
+script: 'recink run unit -c {{ name|lower }}'  
 before_install:
   # other before_install scripts...
   - 'npm install -g recink-{{ name|lower }}'
@@ -47,7 +47,7 @@ Or using the registry:
 ```yaml
 before_install:
   # other before_install scripts...
-  - 'recink add {{ name|lower }}'
+  - 'recink component add {{ name|lower }}'
 ```
 
 Add the `{{ name|upper }}` to `.travis.yml`:
@@ -62,5 +62,11 @@ recink travis encrypt -x '{{ name|upper }}="John"'
 # Usage
 
 ```
-{{ name|upper }}="John" recink run unit -c recink-{{ name|lower }}
+{{ name|upper }}="John" recink run unit -c {{ name|lower }}
+```
+
+Or the generic way:
+
+```
+{{ name|upper }}="John" recink run {{ name|lower }}
 ```

@@ -9,9 +9,10 @@ const ComponentRegistry = require('../component/registry/registry');
 const NpmLink = require('./npm/link');
 const pkgDir = require('pkg-dir');
 
-module.exports = availableComponents => {
-  return (args, options, logger) => {
+module.exports = (args, options, logger) => {
     const recink = new Recink();
+
+    let namespace = args.name;
     let disabledComponents = options.s;
     let additionalComponents = options.c;
     
@@ -22,10 +23,26 @@ module.exports = availableComponents => {
     if (!Array.isArray(additionalComponents)) {
       additionalComponents = [ additionalComponents ].filter(Boolean);
     }
+
+    switch (namespace.toLowerCase()) {
+      case 'e2e':
+      case 'unit':
+        namespace = namespace.toLowerCase();
+        break;
+      default:
+        additionalComponents.push(namespace);
+        namespace = 'generic';
+    }
+
+    const availableComponents = require(`./${ namespace }/components`);
+    const componentRegistry = ComponentRegistry.create(
+      ComponentRegistry.DEFAULT_STORAGE_PATH,
+      namespace.toLowerCase()
+    );
     
-    const componentRegistry = ComponentRegistry.create();
-    
-    logger.debug(`Initialize components registry in ${ componentRegistry.storage.path }`);
+    logger.debug(
+      `Initialize components registry in ${ componentRegistry.storage.registryFile }`
+    );
 
     return componentRegistry.load()
       .then(() => {
@@ -92,4 +109,3 @@ module.exports = availableComponents => {
         .then(() => recink.run());
       });
   };
-};

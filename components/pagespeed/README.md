@@ -21,26 +21,40 @@ manage different versions of Node.js; Ideally, use v8+ for faster performance
 
 - `npm install -g recink-pagespeed`
 
-> Note that the component is installed automatically when running `recink add pagespeed`
+> Note that the component is installed automatically when running `recink component add pagespeed`
 
 # Configuration
 
 `.recink.yml` configuration:
 
-```yaml
+```yaml 
 $:
   pagespeed:
-    uri:                              # URIs to analyze
+    uri:                                                                      # URIs to analyze
       - https://www.example.com
-    # strategy: desktop               # Available: desktop, mobile
-    # filter-third-party: true        # Filter 3'rd party assets
-    # locale: en                      # @see https://developers.google.com/speed/docs/insights/languagesx
+    # strategy: desktop                                                       # Available: desktop, mobile
+    # filter-third-party: true                                                # Filter 3'rd party assets
+    # locale: en                                                              # @see https://developers.google.com/speed/docs/insights/languagesx
+    # reporters:                                                              # Customize Reporters (available: text, summary)
+    #   summary: ~
+    #   text: 
+    #     - minimal: true                                                     # Skip showing detailed statistics
+    # compare:
+    #   negative-delta: 3                                                     # Compare coverage info and if negative delta is more than X fail (0.01-100.00)
+    #   storage:                                              
+    #     driver: 's3'                                                        # Available drivers: s3, volative
+    #     options:
+    #       - 's3://travis-metadata/pagespeed/sample-repo'                    # S3 storage directory
+    #       -                                                                 # S3 storage options
+    #         region: 'process.env.AWS_DEFAULT_REGION'
+    #         accessKeyId: 'process.env.AWS_ACCESS_KEY_ID'
+    #         secretAccessKey: 'process.env.AWS_SECRET_ACCESS_KEY'
 ```
 
 `.travis.yml` configuration:
 
 ```yaml
-script: 'recink run unit -c recink-pagespeed'
+script: 'recink run pagespeed'
 before_install:
   # other before_install scripts...
   - 'npm install -g recink-pagespeed'
@@ -51,12 +65,12 @@ Or using the registry:
 ```yaml
 before_install:
   # other before_install scripts...
-  - 'recink add pagespeed'
+  - 'recink component add pagespeed'
 ```
 
 
 # Usage
 
 ```
-recink run unit -c recink-pagespeed
+recink run pagespeed
 ```

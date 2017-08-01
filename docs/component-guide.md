@@ -1,7 +1,8 @@
 # Crafting an Component
 
-A component is about handling a small portion of functionality or
+A component is all about handling a small portion of functionality or
 an integration with a 3'rd party service (e.g. [CodeClimate](https://codeclimate.com), [Snyk.io](https://snyk.io)).
+
 
 ### Before Starting
 
@@ -13,6 +14,11 @@ The most important functions are:
 - `emitter.onBlocking` & `emitter.emitBlocking`
 
 `emitter.onBlocking` - is executed sequentially and is waiting for a [Promise](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise) to be returned.
+
+The last but not the least- you **MUST** know the following mantra:
+
+> **Everything is a component, Everything is a component, Everything is a component...**
+
 
 ### Ecosystem
 
@@ -50,6 +56,7 @@ drwxr-xr-x   3 AlexanderC  staff   102 Jul  4 10:29 template
 To test your component run:
 
 `HELLO="John" recink run unit ~/Desktop/hello/template -c ~/Desktop/hello`
+
 
 ### Component Interface
 
@@ -112,7 +119,44 @@ get dependencies() {
 
 > Note that your component will be disabled if any of dependencies you've specified is missing or disabled.
 
+### Preparing for `run()`
+
+`REciNK` allows the components prepare for `run()` by implemeting `init()` method:
+
+```javascript
+/**
+  * @param {Emitter} emitter
+  * 
+  * @returns {Promise}
+  */
+init(emitter) {
+  return Promise.resolve();
+}
+```
+
+> `REciNK` will wait for all `init()` calls resolved before invoking `run()`
+
+
+### Cleaning Up Allocated Resources
+
+A good practive would be cleaning up allocated resources.
+`REciNK` comes up with a method called `teardown()` called after all components
+have finished their execution:
+
+```javascript
+/**
+  * @param {Emitter} emitter
+  * 
+  * @returns {Promise}
+  */
+teardown(emitter) {
+  return Promise.resolve();
+}
+```
+
+> Note that `teardown()` is called even if the component is **not** active
+
+
 ### Final Notes
 
 In order to get a better understanding of components architecture you could explore [in-house built components](https://github.com/MitocGroup/recink/tree/master/components)
-
