@@ -3,6 +3,7 @@
 const DependantConfigBasedComponent = require('./dependant-config-based-component');
 const emitEvents = require('./emit/events');
 const events = require('./e2e/events');
+const registerNightmareBrowserProvider = require('./e2e/testcafe/nightmare-browser-provider-registrar');
 const print = require('print');
 const ContainerTransformer = require('./helper/container-transformer');
 const createTestCafe = require('testcafe');
@@ -59,6 +60,8 @@ class E2EComponent extends DependantConfigBasedComponent {
           E2EComponent.DEFAULT_SERVER_HOSTNAME, 
           ...E2EComponent.DEFAULT_SERVER_PORTS
         ).then(testcafe => {
+          registerNightmareBrowserProvider();
+
           const runner = testcafe.createRunner();
           const reporter = this.container.get('reporter', E2EComponent.DEFAULT_REPORTER);
           const browsers = this.container.get('browsers', E2EComponent.DEFAULT_BROWSERS);
@@ -293,7 +296,7 @@ class E2EComponent extends DependantConfigBasedComponent {
   static get RUN_OPTIONS() {
     return {
       skipJsErrors: true,
-      assertionTimeout: 20000,
+      assertionTimeout: 60000,
       quarantineMode: true,
     };
   }
