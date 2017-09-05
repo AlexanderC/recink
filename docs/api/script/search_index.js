@@ -288,9 +288,9 @@ window.esdocSearchIndex = [
     "function"
   ],
   [
-    "recink/src/component/e2e/testcafe/nightmare-browser-provider-registrar.js~register",
+    "recink/src/component/e2e/testcafe/browsers-registrar.js~register",
     "function/index.html#static-function-register",
-    "<span>register</span> <span class=\"search-result-import-path\">recink/src/component/e2e/testcafe/nightmare-browser-provider-registrar.js</span>",
+    "<span>register</span> <span class=\"search-result-import-path\">recink/src/component/e2e/testcafe/browsers-registrar.js</span>",
     "function"
   ],
   [
@@ -1224,9 +1224,9 @@ window.esdocSearchIndex = [
     "file"
   ],
   [
-    "src/component/e2e/testcafe/nightmare-browser-provider-registrar.js",
-    "file/src/component/e2e/testcafe/nightmare-browser-provider-registrar.js.html",
-    "src/component/e2e/testcafe/nightmare-browser-provider-registrar.js",
+    "src/component/e2e/testcafe/browsers-registrar.js",
+    "file/src/component/e2e/testcafe/browsers-registrar.js.html",
+    "src/component/e2e/testcafe/browsers-registrar.js",
     "file"
   ],
   [
@@ -1450,54 +1450,6 @@ window.esdocSearchIndex = [
     "file/src/component/helper/module-compile.js.html",
     "src/component/helper/module-compile.js",
     "file"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile#add",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#instance-method-add",
-    "src/component/helper/module-compile.js~ModuleCompile#add",
-    "method"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile#compilers",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#instance-get-compilers",
-    "src/component/helper/module-compile.js~ModuleCompile#compilers",
-    "member"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile#constructor",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#instance-constructor-constructor",
-    "src/component/helper/module-compile.js~ModuleCompile#constructor",
-    "method"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile#originalcompile",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#instance-get-originalCompile",
-    "src/component/helper/module-compile.js~ModuleCompile#originalCompile",
-    "member"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile#register",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#instance-method-register",
-    "src/component/helper/module-compile.js~ModuleCompile#register",
-    "method"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile#remove",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#instance-method-remove",
-    "src/component/helper/module-compile.js~ModuleCompile#remove",
-    "method"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile#restore",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#instance-method-restore",
-    "src/component/helper/module-compile.js~ModuleCompile#restore",
-    "method"
-  ],
-  [
-    "src/component/helper/module-compile.js~modulecompile.clearcache",
-    "class/src/component/helper/module-compile.js~ModuleCompile.html#static-method-clearCache",
-    "src/component/helper/module-compile.js~ModuleCompile.clearCache",
-    "method"
   ],
   [
     "src/component/helper/module-compile.js~modulecompile.require",
