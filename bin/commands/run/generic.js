@@ -6,8 +6,7 @@ const componentsFactory = require('../../../src/component/factory');
 const SequentialPromise = require('../../../src/component/helper/sequential-promise');
 const path = require('path');
 const ComponentRegistry = require('../component/registry/registry');
-const NpmLink = require('./npm/link');
-const pkgDir = require('pkg-dir');
+const resolvePackage = require('resolve-package');
 
 module.exports = (args, options, logger) => {
   const recink = new Recink();
@@ -52,36 +51,46 @@ module.exports = (args, options, logger) => {
         .map(component => {
           additionalComponents.push(component);
         });
-        
+      
       return SequentialPromise.all(additionalComponents.map(component => {
         return () => {
-          const requirePath = /^recink-/i.test(component) 
-            ? component 
-            : path.resolve(process.cwd(), component);
-            
-          return pkgDir(requirePath)
-            .then(requirePackageRoot => {
-              if (!requirePackageRoot) {
-                return Promise.resolve();
-              }
-                
-              return Env.exists('RECINK_SKIP_SELF_LINKING') ? Promise.resolve() : new NpmLink(
-                path.resolve(__dirname, '../../../'),
-                requirePackageRoot
-              ).run();
-            })
-            .then(() => {
-              try {
-                const ComponentConstructor =  require(requirePath);
-                  
-                additionalComponentsInstances.push(new ComponentConstructor());
-              } catch (error) {
-                logger.warn(`${ logger.emoji.cross } Error initializing component ${ component }`);
-                logger.error(error);
-              }
-                
+          let componentPromise;
+
+          if (/^[a-z0-9]/i.test(component)) {
+            let componentName = component;
+
+            if (component.indexOf('recink') !== 0) {
+              componentName = `recink-${ component }`;
+            }
+
+            componentPromise = resolvePackage(componentName);
+          } else {
+            componentPromise = Promise.resolve(path.resolve(
+              process.cwd(),
+              component
+            ));
+          }
+
+          return componentPromise.then(componentPath => {
+
+            if (!componentPath) {
+              logger.warn(`${ logger.emoji.cross } Error initializing component ${ component }`);
+              logger.error(new Error(`Unable to resolve path to ${ component } component`));
+
               return Promise.resolve();
-            });
+            }
+
+            try {
+              const ComponentConstructor = require(componentPath);
+              
+              additionalComponentsInstances.push(new ComponentConstructor());
+            } catch (error) {
+              logger.warn(`${ logger.emoji.cross } Error initializing component ${ component }`);
+              logger.error(error);
+            }
+              
+            return Promise.resolve();
+          });
         };
       })).then(() => {
         const components = availableComponents

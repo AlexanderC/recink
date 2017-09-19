@@ -31,8 +31,9 @@ $:
   preprocess:
     '$.terraform.vars.sample': 'eval'
   terraform:
-#   resource-dirname: '.resource'                                           # Resource dirname relative to the module root directory (default ".resource")
-#   binary: './bin/terraform'                                               # Path to Terraform binary (default "./bin/terraform")
+    use-cache: true                                                         # Enable state/plans/backups caching if cache component enabled
+    resource-dirname: '.resource'                                           # Resource dirname relative to the module root directory (default ".resource")
+    binary: './bin/terraform'                                               # Path to Terraform binary (default "./bin/terraform")
     init: true                                                              # Initialize Terraform setup (default "true")
     plan: true                                                              # Terraform validate .tf and make a provision plan (default "true")
     apply: false                                                            # Terraform provision infrastructure (default "false")
@@ -97,7 +98,7 @@ SAMPLE_VAR="sample value" GITHUB_ACCESS_TOKEN=xxxxxxx recink run terraform -c co
 
 The following example will create 2 AWS VPCs with a peering connection between them:
 
-`AWS_DEFAULT_REGION='${region}' AWS_ACCESS_KEY_ID='${access-key-id}' AWS_SECRET_ACCESS_KEY='${secret-access-key}' recink run terraform example/ -s cache`
+`AWS_DEFAULT_REGION='${region}' AWS_ACCESS_KEY_ID='${access-key-id}' AWS_SECRET_ACCESS_KEY='${secret-access-key}' recink run terraform example/`
 
 > Note that `example/` directory is relative to the `recink-terraform` module root.
 

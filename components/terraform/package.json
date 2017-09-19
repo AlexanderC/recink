@@ -1,6 +1,6 @@
 {
   "name": "recink-terraform",
-  "version": "1.0.1",
+  "version": "1.0.8",
   "description": "REciNK Component for Terraform",
   "keywords": [
     "REciNK",
@@ -35,12 +35,12 @@
     "version": "0.10.4"
   },
   "dependencies": {
+    "debug": "^3.0.1",
     "download": "^6.2.5",
     "execa": "^0.8.0",
-    "fs-extra": "^4.0.1"
-  },
-  "peerDependencies": {
-    "recink": "^1.x.x"
+    "fs-extra": "^4.0.1",
+    "recink": "^1.x.x",
+    "tf-parse": "^0.4.0"
   },
   "engines": {
     "node": ">=6.0",

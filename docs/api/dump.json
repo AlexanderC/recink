@@ -2639,7 +2639,7 @@
     "__docId__": 94,
     "kind": "file",
     "name": "src/component/cache-component.js",
-    "content": "'use strict';\n\nconst npmEvents = require('./npm/events');\nconst emitEvents = require('./emit/events');\nconst CacheFactory = require('./cache/factory');\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst Spinner = require('./helper/spinner');\nconst cacheEvents = require('./cache/events');\nconst prettyBytes = require('pretty-bytes');\nconst SequentialPromise = require('./helper/sequential-promise');\n\n/**\n * Cache component\n */\nclass CacheComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._caches = [];\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'cache';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [];\n  }\n\n  /**\n   * @returns {AbstractDriver[]}\n   */\n  get caches() {\n    return this._caches;\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  init(emitter) {\n    return Promise.all([\n      this._initCaches(emitter),\n      this._initNpmCache(emitter)\n    ]);\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  teardown(emitter) {\n    if (this.caches.length <= 0) {\n      return Promise.resolve();\n    }\n\n    return SequentialPromise.all(this.caches.map(cache => {\n      return () => this._uploadCache(cache);\n    }));\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * \n   * @private\n   */\n  _initCaches(emitter) {\n    const cachePaths = this.container.get('paths', []);\n\n    if (cachePaths.length <= 0) {\n      return Promise.resolve();\n    }\n\n    return SequentialPromise.all(cachePaths.map(cacheDir => {\n      return () => {\n        const cache = this._createCache(cacheDir);\n\n        this.caches.push(cache);\n\n        return this._downloadCache(cache);\n      };\n    }));\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * \n   * @private\n   */\n  _initNpmCache(emitter) {\n    const enabled = this.container.get('npm', true);\n\n    if (!enabled || !emitter.component('npm')) {\n      return Promise.resolve();\n    }\n\n    emitter.onBlocking(npmEvents.npm.cache.init, cacheDir => {\n      const npmCache = this._createCache(cacheDir);\n\n      this.caches.push(npmCache);\n\n      return this._downloadCache(npmCache);\n    });\n\n    return Promise.resolve();\n  }\n\n  /**\n   * @param {string} cacheDir\n   *\n   * @returns {AbstractDriver}\n   *\n   * @private\n   */\n  _createCache(cacheDir) {\n    return CacheFactory.create(\n      this.container.get('driver'),\n      cacheDir,\n      ...this.container.get('options', [])\n    );\n  }\n\n  /**\n   * @param {AbstractDriver} cache \n   * \n   * @private\n   */\n  _downloadCache(cache) {\n    const spinner = new Spinner(`Downloading caches from #${ cache.name }`);\n      \n    return spinner.then(\n      `Caches downloaded to ${ cache.cacheDir }`\n    ).catch(\n      `Failed to download caches to ${ cache.cacheDir }`\n    ).promise(\n      this._trackProgress(cache, spinner).download()\n    );\n  }\n\n  /**\n   * @param {AbstractDriver} cache \n   * \n   * @private\n   */\n  _uploadCache(cache) {\n    const spinner = new Spinner(`Uploading caches to #${ cache.name }`);\n      \n    return spinner.then(\n      `Caches uploaded from ${ cache.cacheDir }`\n    ).catch(\n      `Failed to upload caches from ${ cache.cacheDir }`\n    ).promise(\n      this._trackProgress(cache, spinner).upload()\n    );\n  }\n  \n  /**\n   * @param {EventEmitter} emitter\n   * @param {ora} spinner\n   *\n   * @returns {EventEmitter}\n   *\n   * @private\n   */\n  _trackProgress(emitter, spinner) {\n    emitter.on(cacheEvents.cache.upload.progress, payload => {\n      const { amount, total } = payload;\n      \n      spinner.prepend(`[${ prettyBytes(amount) }/${ prettyBytes(total) }]`);\n    });\n    \n    spinner.prepend(`[0/0]`);\n    \n    return emitter;\n  }\n}\n\nmodule.exports = CacheComponent;\n",
+    "content": "'use strict';\n\nconst npmEvents = require('./npm/events');\nconst CacheFactory = require('./cache/factory');\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst Spinner = require('./helper/spinner');\nconst cacheEvents = require('./cache/events');\nconst prettyBytes = require('pretty-bytes');\nconst SequentialPromise = require('./helper/sequential-promise');\n\n/**\n * Cache component\n */\nclass CacheComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._caches = [];\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'cache';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [];\n  }\n\n  /**\n   * @returns {AbstractDriver[]}\n   */\n  get caches() {\n    return this._caches;\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  init(emitter) {\n    return Promise.all([\n      this._initCaches(emitter),\n      this._initNpmCache(emitter)\n    ]);\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  teardown(emitter) {\n    if (this.caches.length <= 0) {\n      return Promise.resolve();\n    }\n\n    return SequentialPromise.all(this.caches.map(cache => {\n      return () => this._uploadCache(cache);\n    }));\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * \n   * @private\n   */\n  _initCaches(emitter) {\n    const cachePaths = this.container.get('paths', []);\n\n    if (cachePaths.length <= 0) {\n      return Promise.resolve();\n    }\n\n    return SequentialPromise.all(cachePaths.map(cacheDir => {\n      return () => {\n        const cache = this._createCache(cacheDir);\n\n        this.caches.push(cache);\n\n        return this._downloadCache(cache);\n      };\n    }));\n  }\n\n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * \n   * @private\n   */\n  _initNpmCache(emitter) {\n    const enabled = this.container.get('npm', true);\n\n    if (!enabled || !emitter.component('npm')) {\n      return Promise.resolve();\n    }\n\n    emitter.onBlocking(npmEvents.npm.cache.init, cacheDir => {\n      const npmCache = this._createCache(cacheDir);\n\n      this.caches.push(npmCache);\n\n      return this._downloadCache(npmCache);\n    });\n\n    return Promise.resolve();\n  }\n\n  /**\n   * @param {string} cacheDir\n   *\n   * @returns {AbstractDriver}\n   *\n   * @private\n   */\n  _createCache(cacheDir) {\n    return CacheFactory.create(\n      this.container.get('driver'),\n      cacheDir,\n      ...this.container.get('options', [])\n    );\n  }\n\n  /**\n   * @param {AbstractDriver} cache \n   * \n   * @returns {Promise}\n   * \n   * @private\n   */\n  _downloadCache(cache) {\n    const spinner = new Spinner(`Downloading caches from #${ cache.name }`);\n      \n    return spinner.then(\n      `Caches downloaded to ${ cache.cacheDir }`\n    ).catch(\n      `Failed to download caches to ${ cache.cacheDir }`\n    ).promise(\n      this._trackProgress(cache, spinner).download()\n    );\n  }\n\n  /**\n   * @param {AbstractDriver} cache \n   * \n   * @returns {Promise}\n   * \n   * @private\n   */\n  _uploadCache(cache) {\n    const spinner = new Spinner(`Uploading caches to #${ cache.name }`);\n      \n    return spinner.then(\n      `Caches uploaded from ${ cache.cacheDir }`\n    ).catch(\n      `Failed to upload caches from ${ cache.cacheDir }`\n    ).promise(\n      this._trackProgress(cache, spinner).upload()\n    );\n  }\n  \n  /**\n   * @param {EventEmitter} emitter\n   * @param {ora} spinner\n   *\n   * @returns {EventEmitter}\n   *\n   * @private\n   */\n  _trackProgress(emitter, spinner) {\n    emitter.on(cacheEvents.cache.upload.progress, payload => {\n      const { amount, total } = payload;\n      \n      spinner.prepend(`[${ prettyBytes(amount) }/${ prettyBytes(total) }]`);\n    });\n    \n    spinner.prepend(`[0/0]`);\n    \n    return emitter;\n  }\n}\n\nmodule.exports = CacheComponent;\n",
     "static": true,
     "longname": "src/component/cache-component.js",
     "access": null,
@@ -2675,10 +2675,10 @@
   {
     "__docId__": 96,
     "kind": "variable",
-    "name": "emitEvents",
+    "name": "CacheFactory",
     "memberof": "src/component/cache-component.js",
     "static": true,
-    "longname": "src/component/cache-component.js~emitEvents",
+    "longname": "src/component/cache-component.js~CacheFactory",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/cache-component.js",
@@ -2701,10 +2701,10 @@
   {
     "__docId__": 97,
     "kind": "variable",
-    "name": "CacheFactory",
+    "name": "DependantConfigBasedComponent",
     "memberof": "src/component/cache-component.js",
     "static": true,
-    "longname": "src/component/cache-component.js~CacheFactory",
+    "longname": "src/component/cache-component.js~DependantConfigBasedComponent",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/cache-component.js",
@@ -2727,10 +2727,10 @@
   {
     "__docId__": 98,
     "kind": "variable",
-    "name": "DependantConfigBasedComponent",
+    "name": "Spinner",
     "memberof": "src/component/cache-component.js",
     "static": true,
-    "longname": "src/component/cache-component.js~DependantConfigBasedComponent",
+    "longname": "src/component/cache-component.js~Spinner",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/cache-component.js",
@@ -2753,10 +2753,10 @@
   {
     "__docId__": 99,
     "kind": "variable",
-    "name": "Spinner",
+    "name": "cacheEvents",
     "memberof": "src/component/cache-component.js",
     "static": true,
-    "longname": "src/component/cache-component.js~Spinner",
+    "longname": "src/component/cache-component.js~cacheEvents",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/cache-component.js",
@@ -2779,10 +2779,10 @@
   {
     "__docId__": 100,
     "kind": "variable",
-    "name": "cacheEvents",
+    "name": "prettyBytes",
     "memberof": "src/component/cache-component.js",
     "static": true,
-    "longname": "src/component/cache-component.js~cacheEvents",
+    "longname": "src/component/cache-component.js~prettyBytes",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/cache-component.js",
@@ -2805,10 +2805,10 @@
   {
     "__docId__": 101,
     "kind": "variable",
-    "name": "prettyBytes",
+    "name": "SequentialPromise",
     "memberof": "src/component/cache-component.js",
     "static": true,
-    "longname": "src/component/cache-component.js~prettyBytes",
+    "longname": "src/component/cache-component.js~SequentialPromise",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/cache-component.js",
@@ -2830,32 +2830,6 @@
   },
   {
     "__docId__": 102,
-    "kind": "variable",
-    "name": "SequentialPromise",
-    "memberof": "src/component/cache-component.js",
-    "static": true,
-    "longname": "src/component/cache-component.js~SequentialPromise",
-    "access": null,
-    "export": false,
-    "importPath": "recink/src/component/cache-component.js",
-    "importStyle": null,
-    "description": null,
-    "lineNumber": 10,
-    "undocument": true,
-    "unknown": [
-      {
-        "tagName": "@_undocument",
-        "tagValue": ""
-      }
-    ],
-    "type": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 103,
     "kind": "class",
     "name": "CacheComponent",
     "memberof": "src/component/cache-component.js",
@@ -2866,14 +2840,14 @@
     "importPath": "recink/src/component/cache-component.js",
     "importStyle": "CacheComponent",
     "description": "Cache component",
-    "lineNumber": 15,
+    "lineNumber": 14,
     "interface": false,
     "extends": [
       "DependantConfigBasedComponent"
     ]
   },
   {
-    "__docId__": 104,
+    "__docId__": 103,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -2883,7 +2857,7 @@
     "longname": "src/component/cache-component.js~CacheComponent#constructor",
     "access": null,
     "description": "",
-    "lineNumber": 19,
+    "lineNumber": 18,
     "params": [
       {
         "nullable": null,
@@ -2898,7 +2872,7 @@
     ]
   },
   {
-    "__docId__": 105,
+    "__docId__": 104,
     "kind": "member",
     "name": "_caches",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -2906,7 +2880,7 @@
     "longname": "src/component/cache-component.js~CacheComponent#_caches",
     "access": null,
     "description": null,
-    "lineNumber": 22,
+    "lineNumber": 21,
     "undocument": true,
     "unknown": [
       {
@@ -2921,7 +2895,7 @@
     }
   },
   {
-    "__docId__": 106,
+    "__docId__": 105,
     "kind": "get",
     "name": "name",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -2931,7 +2905,7 @@
     "longname": "src/component/cache-component.js~CacheComponent#name",
     "access": null,
     "description": "",
-    "lineNumber": 28,
+    "lineNumber": 27,
     "unknown": [
       {
         "tagName": "@returns",
@@ -2953,7 +2927,7 @@
     }
   },
   {
-    "__docId__": 107,
+    "__docId__": 106,
     "kind": "get",
     "name": "dependencies",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -2963,7 +2937,7 @@
     "longname": "src/component/cache-component.js~CacheComponent#dependencies",
     "access": null,
     "description": "",
-    "lineNumber": 35,
+    "lineNumber": 34,
     "unknown": [
       {
         "tagName": "@returns",
@@ -2985,7 +2959,7 @@
     }
   },
   {
-    "__docId__": 108,
+    "__docId__": 107,
     "kind": "get",
     "name": "caches",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -2995,7 +2969,7 @@
     "longname": "src/component/cache-component.js~CacheComponent#caches",
     "access": null,
     "description": "",
-    "lineNumber": 42,
+    "lineNumber": 41,
     "unknown": [
       {
         "tagName": "@returns",
@@ -3017,7 +2991,7 @@
     }
   },
   {
-    "__docId__": 109,
+    "__docId__": 108,
     "kind": "method",
     "name": "init",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -3027,7 +3001,46 @@
     "longname": "src/component/cache-component.js~CacheComponent#init",
     "access": null,
     "description": "",
-    "lineNumber": 51,
+    "lineNumber": 50,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{Promise}"
+      }
+    ],
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "Emitter"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "emitter",
+        "description": ""
+      }
+    ],
+    "return": {
+      "nullable": null,
+      "types": [
+        "Promise"
+      ],
+      "spread": false,
+      "description": ""
+    }
+  },
+  {
+    "__docId__": 109,
+    "kind": "method",
+    "name": "teardown",
+    "memberof": "src/component/cache-component.js~CacheComponent",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "src/component/cache-component.js~CacheComponent#teardown",
+    "access": null,
+    "description": "",
+    "lineNumber": 62,
     "unknown": [
       {
         "tagName": "@returns",
@@ -3058,15 +3071,15 @@
   {
     "__docId__": 110,
     "kind": "method",
-    "name": "teardown",
+    "name": "_initCaches",
     "memberof": "src/component/cache-component.js~CacheComponent",
     "generator": false,
     "async": false,
     "static": false,
-    "longname": "src/component/cache-component.js~CacheComponent#teardown",
-    "access": null,
+    "longname": "src/component/cache-component.js~CacheComponent#_initCaches",
+    "access": "private",
     "description": "",
-    "lineNumber": 63,
+    "lineNumber": 79,
     "unknown": [
       {
         "tagName": "@returns",
@@ -3097,15 +3110,15 @@
   {
     "__docId__": 111,
     "kind": "method",
-    "name": "_initCaches",
+    "name": "_initNpmCache",
     "memberof": "src/component/cache-component.js~CacheComponent",
     "generator": false,
     "async": false,
     "static": false,
-    "longname": "src/component/cache-component.js~CacheComponent#_initCaches",
+    "longname": "src/component/cache-component.js~CacheComponent#_initNpmCache",
     "access": "private",
     "description": "",
-    "lineNumber": 80,
+    "lineNumber": 104,
     "unknown": [
       {
         "tagName": "@returns",
@@ -3136,45 +3149,6 @@
   {
     "__docId__": 112,
     "kind": "method",
-    "name": "_initNpmCache",
-    "memberof": "src/component/cache-component.js~CacheComponent",
-    "generator": false,
-    "async": false,
-    "static": false,
-    "longname": "src/component/cache-component.js~CacheComponent#_initNpmCache",
-    "access": "private",
-    "description": "",
-    "lineNumber": 105,
-    "unknown": [
-      {
-        "tagName": "@returns",
-        "tagValue": "{Promise}"
-      }
-    ],
-    "params": [
-      {
-        "nullable": null,
-        "types": [
-          "Emitter"
-        ],
-        "spread": false,
-        "optional": false,
-        "name": "emitter",
-        "description": ""
-      }
-    ],
-    "return": {
-      "nullable": null,
-      "types": [
-        "Promise"
-      ],
-      "spread": false,
-      "description": ""
-    }
-  },
-  {
-    "__docId__": 113,
-    "kind": "method",
     "name": "_createCache",
     "memberof": "src/component/cache-component.js~CacheComponent",
     "generator": false,
@@ -3183,7 +3157,7 @@
     "longname": "src/component/cache-component.js~CacheComponent#_createCache",
     "access": "private",
     "description": "",
-    "lineNumber": 130,
+    "lineNumber": 129,
     "unknown": [
       {
         "tagName": "@returns",
@@ -3212,7 +3186,7 @@
     }
   },
   {
-    "__docId__": 114,
+    "__docId__": 113,
     "kind": "method",
     "name": "_downloadCache",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -3222,7 +3196,13 @@
     "longname": "src/component/cache-component.js~CacheComponent#_downloadCache",
     "access": "private",
     "description": "",
-    "lineNumber": 143,
+    "lineNumber": 144,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{Promise}"
+      }
+    ],
     "params": [
       {
         "nullable": null,
@@ -3236,13 +3216,16 @@
       }
     ],
     "return": {
+      "nullable": null,
       "types": [
-        "*"
-      ]
+        "Promise"
+      ],
+      "spread": false,
+      "description": ""
     }
   },
   {
-    "__docId__": 115,
+    "__docId__": 114,
     "kind": "method",
     "name": "_uploadCache",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -3252,7 +3235,13 @@
     "longname": "src/component/cache-component.js~CacheComponent#_uploadCache",
     "access": "private",
     "description": "",
-    "lineNumber": 160,
+    "lineNumber": 163,
+    "unknown": [
+      {
+        "tagName": "@returns",
+        "tagValue": "{Promise}"
+      }
+    ],
     "params": [
       {
         "nullable": null,
@@ -3266,13 +3255,16 @@
       }
     ],
     "return": {
+      "nullable": null,
       "types": [
-        "*"
-      ]
+        "Promise"
+      ],
+      "spread": false,
+      "description": ""
     }
   },
   {
-    "__docId__": 116,
+    "__docId__": 115,
     "kind": "method",
     "name": "_trackProgress",
     "memberof": "src/component/cache-component.js~CacheComponent",
@@ -3282,7 +3274,7 @@
     "longname": "src/component/cache-component.js~CacheComponent#_trackProgress",
     "access": "private",
     "description": "",
-    "lineNumber": 180,
+    "lineNumber": 183,
     "unknown": [
       {
         "tagName": "@returns",
@@ -3321,7 +3313,7 @@
     }
   },
   {
-    "__docId__": 117,
+    "__docId__": 116,
     "kind": "file",
     "name": "src/component/config-based-component.js",
     "content": "'use strict';\n\nconst path = require('path');\nconst Container = require('../container');\nconst AbstractComponent = require('./abstract-component');\n\n/**\n * Abstract configuration aware component\n */\nclass ConfigBasedComponent extends AbstractComponent {\n  /**\n   * @param {string} configPath\n   */\n  constructor(configPath = null) {\n    super();\n    \n    this._container = null;\n    this._readyPromise = Promise.resolve();\n    this._configPath = configPath \n      || `${ ConfigBasedComponent.MAIN_CONFIG_KEY }.${ this.name }`;\n  }\n  \n  /**\n   * @returns {*}\n   */\n  get container() {\n    return this._container;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get configPath() {\n    return this._configPath;\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   *\n   * @returns {Promise}\n   */\n  subscribe(emitter) {\n    this._readyPromise = this.waitConfig(emitter)\n      .then(container => {\n        this._container = container;\n      });\n      \n    return Promise.resolve();\n  }\n  \n  /**\n   * @returns {Promise}\n   */\n  ready() {\n    return this._readyPromise;\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   *\n   * @returns {Promise}\n   */\n  waitConfig(emitter) {\n    return new Promise((resolve, reject) => {\n      emitter.on(this.events.config.load, (container, configFile) => {\n        if (container.has(this.configPath)) {\n          return this.prepareConfig(\n            container.get(this.configPath, {}),\n            configFile\n          ).then(container => {\n            this.setActive(true);\n            \n            resolve(container);\n          }).catch(error => reject(error));\n        }\n        \n        resolve(null);\n      });\n    });\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Container}\n   */\n  prepareConfig(config, configFile) {\n    const configFileRealPath = path.resolve(configFile);\n    \n    return Promise.resolve(this.createContainer(\n      Object.assign({\n        __file: configFileRealPath,\n        __dir: path.dirname(configFileRealPath),\n      }, config)\n    ));\n  }\n  \n  /**\n   * @param {*} config\n   *\n   * @returns {Container}\n   */\n  createContainer(config) {\n    return new Container(config);\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get MAIN_CONFIG_KEY() {\n    return '$';\n  }\n}\n\nmodule.exports = ConfigBasedComponent;\n",
@@ -3332,7 +3324,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 118,
+    "__docId__": 117,
     "kind": "variable",
     "name": "path",
     "memberof": "src/component/config-based-component.js",
@@ -3358,7 +3350,7 @@
     }
   },
   {
-    "__docId__": 119,
+    "__docId__": 118,
     "kind": "variable",
     "name": "Container",
     "memberof": "src/component/config-based-component.js",
@@ -3384,7 +3376,7 @@
     }
   },
   {
-    "__docId__": 120,
+    "__docId__": 119,
     "kind": "variable",
     "name": "AbstractComponent",
     "memberof": "src/component/config-based-component.js",
@@ -3410,7 +3402,7 @@
     }
   },
   {
-    "__docId__": 121,
+    "__docId__": 120,
     "kind": "class",
     "name": "ConfigBasedComponent",
     "memberof": "src/component/config-based-component.js",
@@ -3428,7 +3420,7 @@
     ]
   },
   {
-    "__docId__": 122,
+    "__docId__": 121,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3453,7 +3445,7 @@
     ]
   },
   {
-    "__docId__": 123,
+    "__docId__": 122,
     "kind": "member",
     "name": "_container",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3476,7 +3468,7 @@
     }
   },
   {
-    "__docId__": 124,
+    "__docId__": 123,
     "kind": "member",
     "name": "_readyPromise",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3499,7 +3491,7 @@
     }
   },
   {
-    "__docId__": 125,
+    "__docId__": 124,
     "kind": "member",
     "name": "_configPath",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3522,7 +3514,7 @@
     }
   },
   {
-    "__docId__": 126,
+    "__docId__": 125,
     "kind": "get",
     "name": "container",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3554,7 +3546,7 @@
     }
   },
   {
-    "__docId__": 127,
+    "__docId__": 126,
     "kind": "get",
     "name": "configPath",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3586,7 +3578,7 @@
     }
   },
   {
-    "__docId__": 128,
+    "__docId__": 127,
     "kind": "method",
     "name": "subscribe",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3625,7 +3617,7 @@
     }
   },
   {
-    "__docId__": 129,
+    "__docId__": 128,
     "kind": "member",
     "name": "_readyPromise",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3648,7 +3640,7 @@
     }
   },
   {
-    "__docId__": 130,
+    "__docId__": 129,
     "kind": "member",
     "name": "_container",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3671,7 +3663,7 @@
     }
   },
   {
-    "__docId__": 131,
+    "__docId__": 130,
     "kind": "method",
     "name": "ready",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3699,7 +3691,7 @@
     }
   },
   {
-    "__docId__": 132,
+    "__docId__": 131,
     "kind": "method",
     "name": "waitConfig",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3738,7 +3730,7 @@
     }
   },
   {
-    "__docId__": 133,
+    "__docId__": 132,
     "kind": "method",
     "name": "prepareConfig",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3787,7 +3779,7 @@
     }
   },
   {
-    "__docId__": 134,
+    "__docId__": 133,
     "kind": "method",
     "name": "createContainer",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3826,7 +3818,7 @@
     }
   },
   {
-    "__docId__": 135,
+    "__docId__": 134,
     "kind": "get",
     "name": "MAIN_CONFIG_KEY",
     "memberof": "src/component/config-based-component.js~ConfigBasedComponent",
@@ -3858,7 +3850,7 @@
     }
   },
   {
-    "__docId__": 136,
+    "__docId__": 135,
     "kind": "file",
     "name": "src/component/coverage/abstract-driver.js",
     "content": "'use strict';\n\n/**\n * Abstract coverage storage driver\n */\nclass AbstractDriver {\n  /**\n   * @param {string} name\n   *\n   * @returns {Promise}\n   */\n  read(name) {\n    return this._read(name)\n      .then(content => {\n        if (!content) {\n          return Promise.resolve(null);\n        }\n        \n        return Promise.resolve(JSON.parse(content));\n      });\n  }\n  \n  /**\n   * @param {string} name\n   * @param {*} coverage\n   *\n   * @returns {Promise}\n   */\n  write(name, coverage) {\n    return this._write(name, JSON.stringify(coverage));\n  }\n\n  /**\n   * @param {string} name\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _read(name) {\n    return Promise.reject(new Error(\n      `${ this.constructor.name }._read(name) not implemented!`\n    ));\n  }\n  \n  /**\n   * @param {string} name\n   * @param {string} content\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _write(name, content) {\n    return Promise.reject(new Error(\n      `${ this.constructor.name }._write(name, content) not implemented!`\n    ));\n  }\n}\n\nmodule.exports = AbstractDriver;\n",
@@ -3869,7 +3861,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 137,
+    "__docId__": 136,
     "kind": "class",
     "name": "AbstractDriver",
     "memberof": "src/component/coverage/abstract-driver.js",
@@ -3884,7 +3876,7 @@
     "interface": false
   },
   {
-    "__docId__": 138,
+    "__docId__": 137,
     "kind": "method",
     "name": "read",
     "memberof": "src/component/coverage/abstract-driver.js~AbstractDriver",
@@ -3923,7 +3915,7 @@
     }
   },
   {
-    "__docId__": 139,
+    "__docId__": 138,
     "kind": "method",
     "name": "write",
     "memberof": "src/component/coverage/abstract-driver.js~AbstractDriver",
@@ -3972,7 +3964,7 @@
     }
   },
   {
-    "__docId__": 140,
+    "__docId__": 139,
     "kind": "method",
     "name": "_read",
     "memberof": "src/component/coverage/abstract-driver.js~AbstractDriver",
@@ -4011,7 +4003,7 @@
     }
   },
   {
-    "__docId__": 141,
+    "__docId__": 140,
     "kind": "method",
     "name": "_write",
     "memberof": "src/component/coverage/abstract-driver.js~AbstractDriver",
@@ -4060,7 +4052,7 @@
     }
   },
   {
-    "__docId__": 142,
+    "__docId__": 141,
     "kind": "file",
     "name": "src/component/coverage/events.js",
     "content": "'use strict';\n\nconst dot = require('dot-object');\n\n/**\n * Coverage component events\n */\nconst events = {};\n\nevents.$ = [\n  'coverage.report.create',\n  'coverage.report.compare',\n].map(eventPath => {\n  dot.str(eventPath, eventPath, events);\n  \n  return eventPath;\n});\n\nmodule.exports = events;\n",
@@ -4071,7 +4063,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 143,
+    "__docId__": 142,
     "kind": "variable",
     "name": "dot",
     "memberof": "src/component/coverage/events.js",
@@ -4097,7 +4089,7 @@
     }
   },
   {
-    "__docId__": 144,
+    "__docId__": 143,
     "kind": "variable",
     "name": "events",
     "memberof": "src/component/coverage/events.js",
@@ -4116,7 +4108,7 @@
     }
   },
   {
-    "__docId__": 145,
+    "__docId__": 144,
     "kind": "file",
     "name": "src/component/coverage/factory.js",
     "content": "'use strict';\n\nconst AbstractDriver = require('./abstract-driver');\n\n/**\n * Coverage storage factory\n */\nclass Factory {  \n  /**\n   * @param {string} name\n   * @param {*} args\n   *\n   * @returns {AbstractDriver}\n   */\n  static create(name, ...args) {\n    const DriverImplementation = require(`./${ name }-driver`);\n    const driver = new DriverImplementation(...args);\n    \n    if (!(driver instanceof AbstractDriver)) {\n      throw new Error(`${ name } driver should be an implementation of AbstractDriver`);\n    }\n    \n    return driver;\n  }\n  \n  /**\n   * @param {*} args\n   *\n   * @returns {VoidDriver}\n   */\n  static s3(...args) {\n    return this.create('s3', ...args);\n  }\n  \n  /**\n   * @param {*} args\n   *\n   * @returns {VolatileDriver}\n   */\n  static volatile(...args) {\n    return this.create('volatile', ...args);\n  }\n}\n\nmodule.exports = Factory;\n",
@@ -4127,7 +4119,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 146,
+    "__docId__": 145,
     "kind": "variable",
     "name": "AbstractDriver",
     "memberof": "src/component/coverage/factory.js",
@@ -4153,7 +4145,7 @@
     }
   },
   {
-    "__docId__": 147,
+    "__docId__": 146,
     "kind": "class",
     "name": "Factory",
     "memberof": "src/component/coverage/factory.js",
@@ -4168,7 +4160,7 @@
     "interface": false
   },
   {
-    "__docId__": 148,
+    "__docId__": 147,
     "kind": "method",
     "name": "create",
     "memberof": "src/component/coverage/factory.js~Factory",
@@ -4217,7 +4209,7 @@
     }
   },
   {
-    "__docId__": 149,
+    "__docId__": 148,
     "kind": "method",
     "name": "s3",
     "memberof": "src/component/coverage/factory.js~Factory",
@@ -4256,7 +4248,7 @@
     }
   },
   {
-    "__docId__": 150,
+    "__docId__": 149,
     "kind": "method",
     "name": "volatile",
     "memberof": "src/component/coverage/factory.js~Factory",
@@ -4295,7 +4287,7 @@
     }
   },
   {
-    "__docId__": 151,
+    "__docId__": 150,
     "kind": "file",
     "name": "src/component/coverage/s3-driver.js",
     "content": "'use strict';\n\nconst AbstractDriver = require('./abstract-driver');\nconst S3 = require('aws-sdk/clients/s3');\nconst path = require('path');\n\n/**\n * AWS S3 coverage storage driver\n */\nclass S3Driver extends AbstractDriver {\n  /**\n   * @param {string} path\n   * @param {*} options\n   * @param {boolean} includeNodeVersion\n   */\n  constructor(path, options, includeNodeVersion = true) {\n    super();\n    \n    this._path = path;\n    this._options = options;\n    this._client = new S3(this.options);\n    this._includeNodeVersion = includeNodeVersion;\n  }\n  \n  /**\n   * @returns {boolean}\n   */\n  get includeNodeVersion() {\n    return this._includeNodeVersion;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get path() {\n    return this._path;\n  }\n  \n  /**\n   * @returns {S3}\n   */\n  get client() {    \n    return this._client;\n  }\n  \n  /**\n   * @returns {*}\n   */\n  get options() {\n    return this._options;\n  }\n  \n  /**\n   * @param {string} name\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _read(name) {\n    const { Bucket, Key } = this._s3Payload(name);\n    \n    return this.client\n      .getObject({ Bucket, Key, })\n      .promise()\n      .then(data => Promise.resolve(data.Body.toString()))\n      .catch(error => {\n        if (this._isMissingObject(error)) {\n          return Promise.resolve(null);\n        }\n        \n        Promise.reject(error);\n      });\n  }\n  \n  /**\n   * @param {string} name\n   * @param {string} content\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _write(name, content) {\n    const Body = content;\n    const { Bucket, Key } = this._s3Payload(name);\n    \n    return this.client\n      .upload({ Bucket, Key, Body, })\n      .promise()\n      .then(data => Promise.resolve());\n  }\n  \n  /**\n   * @param {*} error\n   *\n   * @returns {boolean}\n   * \n   * @private\n   */\n  _isMissingObject(error) {\n    return [ 'NoSuchKey', 'NotFound' ].indexOf(error.code) !== -1;\n  }\n  \n  /**\n   * @param {string} name\n   *\n   * @returns {*}\n   *\n   * @private\n   */\n  _s3Payload(name) {\n    const matches = this.path.match(\n      /^(?:s3:\\/\\/|\\/)?([^\\/]+)(?:\\/(.*))?$/i\n    );\n    \n    if (matches.length === 2) {\n      matches.push('');\n    }\n    \n    const [ , Bucket, keyPrefix ] = matches;\n    \n    const Key = path.join(\n      keyPrefix || '',\n      this.includeNodeVersion ? process.version : '',\n      name\n    ).replace(/\\\\+/g, '/'); // ensure path delimiter set to slash\n    \n    return { Bucket, Key };\n  }\n}\n\nmodule.exports = S3Driver;\n",
@@ -4306,7 +4298,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 152,
+    "__docId__": 151,
     "kind": "variable",
     "name": "AbstractDriver",
     "memberof": "src/component/coverage/s3-driver.js",
@@ -4332,7 +4324,7 @@
     }
   },
   {
-    "__docId__": 153,
+    "__docId__": 152,
     "kind": "variable",
     "name": "S3",
     "memberof": "src/component/coverage/s3-driver.js",
@@ -4358,7 +4350,7 @@
     }
   },
   {
-    "__docId__": 154,
+    "__docId__": 153,
     "kind": "variable",
     "name": "path",
     "memberof": "src/component/coverage/s3-driver.js",
@@ -4384,7 +4376,7 @@
     }
   },
   {
-    "__docId__": 155,
+    "__docId__": 154,
     "kind": "class",
     "name": "S3Driver",
     "memberof": "src/component/coverage/s3-driver.js",
@@ -4402,7 +4394,7 @@
     ]
   },
   {
-    "__docId__": 156,
+    "__docId__": 155,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4447,7 +4439,7 @@
     ]
   },
   {
-    "__docId__": 157,
+    "__docId__": 156,
     "kind": "member",
     "name": "_path",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4470,7 +4462,7 @@
     }
   },
   {
-    "__docId__": 158,
+    "__docId__": 157,
     "kind": "member",
     "name": "_options",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4493,7 +4485,7 @@
     }
   },
   {
-    "__docId__": 159,
+    "__docId__": 158,
     "kind": "member",
     "name": "_client",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4516,7 +4508,7 @@
     }
   },
   {
-    "__docId__": 160,
+    "__docId__": 159,
     "kind": "member",
     "name": "_includeNodeVersion",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4539,7 +4531,7 @@
     }
   },
   {
-    "__docId__": 161,
+    "__docId__": 160,
     "kind": "get",
     "name": "includeNodeVersion",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4571,7 +4563,7 @@
     }
   },
   {
-    "__docId__": 162,
+    "__docId__": 161,
     "kind": "get",
     "name": "path",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4603,7 +4595,7 @@
     }
   },
   {
-    "__docId__": 163,
+    "__docId__": 162,
     "kind": "get",
     "name": "client",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4635,7 +4627,7 @@
     }
   },
   {
-    "__docId__": 164,
+    "__docId__": 163,
     "kind": "get",
     "name": "options",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4667,7 +4659,7 @@
     }
   },
   {
-    "__docId__": 165,
+    "__docId__": 164,
     "kind": "method",
     "name": "_read",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4706,7 +4698,7 @@
     }
   },
   {
-    "__docId__": 166,
+    "__docId__": 165,
     "kind": "method",
     "name": "_write",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4755,7 +4747,7 @@
     }
   },
   {
-    "__docId__": 167,
+    "__docId__": 166,
     "kind": "method",
     "name": "_isMissingObject",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4794,7 +4786,7 @@
     }
   },
   {
-    "__docId__": 168,
+    "__docId__": 167,
     "kind": "method",
     "name": "_s3Payload",
     "memberof": "src/component/coverage/s3-driver.js~S3Driver",
@@ -4833,7 +4825,7 @@
     }
   },
   {
-    "__docId__": 169,
+    "__docId__": 168,
     "kind": "file",
     "name": "src/component/coverage/volatile-driver.js",
     "content": "'use strict';\n\nconst AbstractDriver = require('./abstract-driver');\nconst path = require('path');\nconst fse = require('fs-extra');\nconst os = require('os');\nconst fs = require('fs');\nconst pify = require('pify');\n\n/**\n * Volatile coverage storage driver\n */\nclass VolatileDriver extends AbstractDriver {\n  /**\n   * @param {string} name\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _read(name) {\n    const file = this._storageFile(name);\n    \n    return fse.pathExists(file)\n      .then(exists => {\n        if (!exists) {\n          return Promise.resolve(null);\n        }\n        \n        return pify(fs.readFile)(file);\n      });\n  }\n  \n  /**\n   * @param {string} name\n   * @param {string} content\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _write(name, content) {\n    return fse.outputFile(this._storageFile(name), content);\n  }\n  \n  /**\n   * @param {string} name\n   * \n   * @returns {string}\n   *\n   * @private\n   */\n  _storageFile(name) {\n    return path.join(os.tmpDir(), '__recink_coverage_volatile__', name);\n  }\n}\n\nmodule.exports = VolatileDriver;\n",
@@ -4844,7 +4836,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 170,
+    "__docId__": 169,
     "kind": "variable",
     "name": "AbstractDriver",
     "memberof": "src/component/coverage/volatile-driver.js",
@@ -4870,7 +4862,7 @@
     }
   },
   {
-    "__docId__": 171,
+    "__docId__": 170,
     "kind": "variable",
     "name": "path",
     "memberof": "src/component/coverage/volatile-driver.js",
@@ -4896,7 +4888,7 @@
     }
   },
   {
-    "__docId__": 172,
+    "__docId__": 171,
     "kind": "variable",
     "name": "fse",
     "memberof": "src/component/coverage/volatile-driver.js",
@@ -4922,7 +4914,7 @@
     }
   },
   {
-    "__docId__": 173,
+    "__docId__": 172,
     "kind": "variable",
     "name": "os",
     "memberof": "src/component/coverage/volatile-driver.js",
@@ -4948,7 +4940,7 @@
     }
   },
   {
-    "__docId__": 174,
+    "__docId__": 173,
     "kind": "variable",
     "name": "fs",
     "memberof": "src/component/coverage/volatile-driver.js",
@@ -4974,7 +4966,7 @@
     }
   },
   {
-    "__docId__": 175,
+    "__docId__": 174,
     "kind": "variable",
     "name": "pify",
     "memberof": "src/component/coverage/volatile-driver.js",
@@ -5000,7 +4992,7 @@
     }
   },
   {
-    "__docId__": 176,
+    "__docId__": 175,
     "kind": "class",
     "name": "VolatileDriver",
     "memberof": "src/component/coverage/volatile-driver.js",
@@ -5018,7 +5010,7 @@
     ]
   },
   {
-    "__docId__": 177,
+    "__docId__": 176,
     "kind": "method",
     "name": "_read",
     "memberof": "src/component/coverage/volatile-driver.js~VolatileDriver",
@@ -5057,7 +5049,7 @@
     }
   },
   {
-    "__docId__": 178,
+    "__docId__": 177,
     "kind": "method",
     "name": "_write",
     "memberof": "src/component/coverage/volatile-driver.js~VolatileDriver",
@@ -5106,7 +5098,7 @@
     }
   },
   {
-    "__docId__": 179,
+    "__docId__": 178,
     "kind": "method",
     "name": "_storageFile",
     "memberof": "src/component/coverage/volatile-driver.js~VolatileDriver",
@@ -5145,10 +5137,10 @@
     }
   },
   {
-    "__docId__": 180,
+    "__docId__": 179,
     "kind": "file",
     "name": "src/component/coverage-component.js",
-    "content": "'use strict';\n\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst istanbul = require('istanbul');\nconst testEvents = require('./test/events');\nconst events = require('./coverage/events');\nconst ContainerTransformer = require('./helper/container-transformer');\nconst path = require('path');\nconst fs = require('fs');\nconst pify = require('pify');\nconst StorageFactory = require('./coverage/factory');\nconst ModuleCompile = require('./helper/module-compile');\n\n/**\n * Coverage component\n */\nclass CoverageComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._storage = null;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'coverage';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [ 'test' ];\n  }\n  \n  /**\n   * @returns {AbstractDriver}\n   *\n   * @private\n   */\n  get _comparatorStorage() {\n    if (this._storage) {\n      return this._storage;\n    }\n    \n    const driver = this.container.get('compare.storage.driver', 'volatile');\n    const options = this.container.get('compare.storage.options', []);\n    \n    this._storage = StorageFactory.create(driver, ...options);\n    \n    return this._storage;\n  }\n  \n  /**\n   * @param {istanbul.Collector} collector\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _doCompare(collector) {\n    const allowedDelta = Math.abs(parseFloat(\n      this.container.get('compare.negative-delta', 100)\n    ));\n    \n    if (!allowedDelta || allowedDelta >= 100) {\n      return Promise.resolve();\n    }\n    \n    const storage = this._comparatorStorage;\n    \n    if (storage.constructor.name === 'VolatileDriver') {\n      this.logger.debug(\n        `Coverage stored in ${ storage._storageFile(CoverageComponent.COVERAGE_FILE) }`\n      );\n    }\n    \n    return storage.read(CoverageComponent.COVERAGE_FILE)\n      .then(coverage => {\n        const newCoverage = collector.getFinalCoverage();\n        \n        if (!coverage) {\n          this.logger.info(\n            this.logger.emoji.bicycle,\n            'No previous coverage info saved...'\n          );\n          \n          return storage.write(\n            CoverageComponent.COVERAGE_FILE, \n            newCoverage\n          );\n        }\n        \n        const delta = this._calculateDelta(coverage, newCoverage);\n        \n        if (delta > allowedDelta) {          \n          return Promise.reject(new Error(\n            `Coverage delta decreased ${ delta.toFixed(2) } > ${ allowedDelta.toFixed(2) }`\n          ));\n        }\n        \n        this.logger.info(\n          this.logger.emoji.bicycle,\n          `Coverage delta checked ${ delta.toFixed(2) } >= ${ allowedDelta.toFixed(2) }`\n        );\n        \n        return storage.write(\n          CoverageComponent.COVERAGE_FILE, \n          newCoverage\n        );\n      });\n  }\n  \n  /**\n   * @param {*} coverage\n   * @param {*} newCoverage\n   *\n   * @returns {number}\n   *\n   * @private\n   */\n  _calculateDelta(coverage, newCoverage) {\n    const summary = this._summarizeCoverage(coverage);\n    const newSummary = this._summarizeCoverage(newCoverage);\n    \n    return CoverageComponent.COVERAGE_KEYS\n      .reduce((accumulator, key) => {\n        return accumulator + \n          parseFloat(summary[key]) - \n          parseFloat((newSummary[key] || 0));\n      }, 0) / CoverageComponent.COVERAGE_KEYS.length;\n  }\n  \n  /**\n   * @param {*} coverage\n   *\n   * @returns {*}\n   *\n   * @private\n   */\n  _summarizeCoverage(coverage) {\n    const summary = {};\n    \n    const summaries = Object.keys(coverage)\n      .map(file => {\n        return istanbul.utils\n          .summarizeFileCoverage(coverage[file]);\n      });\n    \n    const summaryObj = istanbul.utils\n      .mergeSummaryObjects\n      .apply(null, summaries);\n    \n    Object.keys(summaryObj)\n      .map(key => {\n        summary[key] = summaryObj[key].pct;\n      });\n      \n    return summary;\n  }\n  \n  /**\n   * @param {*} assetsToInstrument\n   * @param {*} dispatchedAssets\n   * @param {EmitModule} module\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _persistModuleBlankCoverage(assetsToInstrument, dispatchedAssets, module) {\n    if (!assetsToInstrument[module.name]) {\n      return Promise.resolve();\n    }\n    \n    const coverageVariable = this._coverageVariable(module);\n    \n    return Promise.all(\n      assetsToInstrument[module.name]\n        .filter(asset => {\n          return (dispatchedAssets[module.name] || []).indexOf(asset) === -1;\n        })\n        .map(asset => {\n          return pify(fs.readFile)(asset)\n            .then(content => {\n              const instrumenter = new istanbul.Instrumenter({ coverageVariable });\n\n              instrumenter.instrumentSync(\n                content.toString(), \n                asset\n              );\n              \n              global[coverageVariable] = global[coverageVariable] || {};\n              global[coverageVariable][asset] = instrumenter.lastFileCoverage();\n\n              return Promise.resolve();  \n            });\n        })\n    );\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * '\n   * @todo split into several abstractions\n   */\n  run(emitter) {\n    return new Promise((resolve, reject) => {\n      const collector = new istanbul.Collector();\n      const reporter = new istanbul.Reporter();\n      const reporters = this.container.get('reporters', {});\n      const coverageVariables = [];\n      const assetsToInstrument = {};\n      const dispatchedAssets = {};\n      \n      Object.keys(reporters).map(reporterName => {\n        const report = istanbul.Report.create(\n          reporterName, \n          reporters[reporterName] || {}\n        );\n        \n        reporter.reports[reporterName] = report;\n      });\n      \n      emitter.onBlocking(testEvents.asset.test.skip, payload => {\n        if (!this._match(payload.file)) {\n          return Promise.resolve();\n        }\n        \n        const { module, fileAbs } = payload;\n        \n        assetsToInstrument[module.name] = assetsToInstrument[module.name] || [];\n        assetsToInstrument[module.name].push(fileAbs);\n        \n        return Promise.resolve();\n      });\n      \n      emitter.onBlocking(testEvents.asset.tests.end, (mocha, module) => {\n        return this._persistModuleBlankCoverage(\n          assetsToInstrument,\n          dispatchedAssets,\n          module\n        ).then(() => {\n          delete assetsToInstrument[module.name];\n          delete dispatchedAssets[module.name];\n          \n          return Promise.resolve();\n        });\n      });\n      \n      emitter.onBlocking(testEvents.asset.tests.start, (mocha, module) => {\n        return new Promise(resolve => {\n          const instrumenterCache = {};\n          const coverageVariable = this._coverageVariable(module);\n          const instrumenter = new istanbul.Instrumenter({ coverageVariable });\n          \n          coverageVariables.push(coverageVariable);\n          \n          if (mocha) {\n            mocha.loadFiles = (fn => {\n              const self = this;\n              const moduleRoot = module.container.get('root');\n              const coverableAssets = assetsToInstrument[module.name] || [];\n\n              const preprocessor = (source, filename) => {\n                if (coverableAssets.indexOf(filename) !== -1\n                  && self._match(path.relative(moduleRoot, filename))) {\n\n                  if (instrumenterCache.hasOwnProperty(filename)) {\n                    return instrumenterCache[filename];\n                  }\n                  \n                  instrumenterCache[filename] = instrumenter.instrumentSync.call(instrumenter, source, filename);\n                  dispatchedAssets[module.name] = dispatchedAssets[module.name] || [];\n                  dispatchedAssets[module.name].push(filename);\n                  \n                  return instrumenterCache[filename];\n                }\n                \n                return source;\n              };\n              \n              mocha.files.map(file => {\n                file = path.resolve(file);\n                \n                mocha.suite.emit('pre-require', global, file, mocha);\n                mocha.suite.emit(\n                  'require',\n                  ModuleCompile.require(file, {}, preprocessor),\n                  file,\n                  mocha\n                );\n                mocha.suite.emit('post-require', global, file, mocha);\n              });\n              \n              fn && fn();\n            });\n          }\n          \n          resolve();\n        });\n      });\n      \n      emitter.onBlocking(testEvents.assets.test.end, () => {        \n        coverageVariables.map(coverageVariable => {\n          collector.add(global[coverageVariable] || {});\n        });\n        \n        return emitter.emitBlocking(\n          events.coverage.report.create, \n          istanbul, \n          reporter, \n          collector\n        )\n        .then(() => this._dumpCoverageStats(collector, reporter))\n        .then(() => {\n          return emitter.emitBlocking(\n            events.coverage.report.compare, \n            istanbul, \n            reporter, \n            collector\n          );\n        })\n        .then(() => this._doCompare(collector));\n      });\n      \n      emitter.on(testEvents.assets.test.end, () => resolve());\n    });\n  }\n  \n  /**\n   * @param {istanbul.Collector} collector\n   * @param {istanbul.Reporter} reporter\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _dumpCoverageStats(collector, reporter) {\n    return new Promise(resolve => {\n      reporter.write(collector, false, () => {\n        \n        // @todo find a smarter way to indent the output (buffer it?)\n        process.stdout.write('\\n\\n');\n        \n        resolve();\n      });\n    });\n  }\n  \n  /**\n   * @param {EmitModule} module\n   *\n   * @returns {string}\n   *\n   * @private\n   */\n  _coverageVariable(module) {\n    const cleanModuleName = module.name.replace(/[^a-z0-9]/g, '_');\n    \n    return `__recink_coverage__${ cleanModuleName }__`;\n  }\n  \n  /**\n   * @param {string} file\n   *\n   * @returns {boolean}\n   * \n   * @private\n   */\n  _match(file) {\n    const pattern = this.container.get('pattern', []);\n    const ignore = this.container.get('ignore', []);\n\n    const result = pattern.filter(p => this._test(p, file)).length > 0\n      && ignore.filter(i => this._test(i, file)).length <= 0;\n      \n    return result;\n  }\n  \n  /**\n   * @param {string|RegExp} pattern\n   * @param {string} value\n   *\n   * @returns {boolean}\n   *\n   * @private\n   */\n  _test(pattern, value) {\n    if (!(pattern instanceof RegExp)) {\n      return value.indexOf(pattern.toString()) !== -1;\n    }\n    \n    return pattern.test(value);\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Container}\n   */\n  prepareConfig(config, configFile) {\n    return super.prepareConfig(config, configFile)\n      .then(container => {\n        return (new ContainerTransformer(container))\n          .addPattern('pattern')\n          .addPattern('ignore')\n          .transform();\n      });\n  }\n  \n  /**\n   * @returns {Array}\n   */\n  static get COVERAGE_KEYS() {\n    return [ 'lines', 'statements', 'functions', 'branches' ];\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get COVERAGE_FILE() {\n    return 'coverage.json';\n  }\n}\n\nmodule.exports = CoverageComponent;\n",
+    "content": "'use strict';\n\n/* eslint no-useless-call: 0 */\n\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst istanbul = require('istanbul');\nconst testEvents = require('./test/events');\nconst events = require('./coverage/events');\nconst ContainerTransformer = require('./helper/container-transformer');\nconst path = require('path');\nconst fs = require('fs');\nconst pify = require('pify');\nconst StorageFactory = require('./coverage/factory');\nconst ModuleCompile = require('./helper/module-compile');\n\n/**\n * Coverage component\n */\nclass CoverageComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._storage = null;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'coverage';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [ 'test' ];\n  }\n  \n  /**\n   * @returns {AbstractDriver}\n   *\n   * @private\n   */\n  get _comparatorStorage() {\n    if (this._storage) {\n      return this._storage;\n    }\n    \n    const driver = this.container.get('compare.storage.driver', 'volatile');\n    const options = this.container.get('compare.storage.options', []);\n    \n    this._storage = StorageFactory.create(driver, ...options);\n    \n    return this._storage;\n  }\n  \n  /**\n   * @param {istanbul.Collector} collector\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _doCompare(collector) {\n    const allowedDelta = Math.abs(parseFloat(\n      this.container.get('compare.negative-delta', 100)\n    ));\n    \n    if (!allowedDelta || allowedDelta >= 100) {\n      return Promise.resolve();\n    }\n    \n    const storage = this._comparatorStorage;\n    \n    if (storage.constructor.name === 'VolatileDriver') {\n      this.logger.debug(\n        `Coverage stored in ${ storage._storageFile(CoverageComponent.COVERAGE_FILE) }`\n      );\n    }\n    \n    return storage.read(CoverageComponent.COVERAGE_FILE)\n      .then(coverage => {\n        const newCoverage = collector.getFinalCoverage();\n        \n        if (!coverage) {\n          this.logger.info(\n            this.logger.emoji.bicycle,\n            'No previous coverage info saved...'\n          );\n          \n          return storage.write(\n            CoverageComponent.COVERAGE_FILE, \n            newCoverage\n          );\n        }\n        \n        const delta = this._calculateDelta(coverage, newCoverage);\n        \n        if (delta > allowedDelta) {          \n          return Promise.reject(new Error(\n            `Coverage delta decreased ${ delta.toFixed(2) } > ${ allowedDelta.toFixed(2) }`\n          ));\n        }\n        \n        this.logger.info(\n          this.logger.emoji.bicycle,\n          `Coverage delta checked ${ delta.toFixed(2) } >= ${ allowedDelta.toFixed(2) }`\n        );\n        \n        return storage.write(\n          CoverageComponent.COVERAGE_FILE, \n          newCoverage\n        );\n      });\n  }\n  \n  /**\n   * @param {*} coverage\n   * @param {*} newCoverage\n   *\n   * @returns {number}\n   *\n   * @private\n   */\n  _calculateDelta(coverage, newCoverage) {\n    const summary = this._summarizeCoverage(coverage);\n    const newSummary = this._summarizeCoverage(newCoverage);\n    \n    return CoverageComponent.COVERAGE_KEYS\n      .reduce((accumulator, key) => {\n        return accumulator + \n          parseFloat(summary[key]) - \n          parseFloat((newSummary[key] || 0));\n      }, 0) / CoverageComponent.COVERAGE_KEYS.length;\n  }\n  \n  /**\n   * @param {*} coverage\n   *\n   * @returns {*}\n   *\n   * @private\n   */\n  _summarizeCoverage(coverage) {\n    const summary = {};\n    \n    const summaries = Object.keys(coverage)\n      .map(file => {\n        return istanbul.utils\n          .summarizeFileCoverage(coverage[file]);\n      });\n    \n    const summaryObj = istanbul.utils\n      .mergeSummaryObjects\n      .apply(null, summaries);\n    \n    Object.keys(summaryObj)\n      .map(key => {\n        summary[key] = summaryObj[key].pct;\n      });\n      \n    return summary;\n  }\n  \n  /**\n   * @param {*} assetsToInstrument\n   * @param {*} dispatchedAssets\n   * @param {EmitModule} module\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _persistModuleBlankCoverage(assetsToInstrument, dispatchedAssets, module) {\n    if (!assetsToInstrument[module.name]) {\n      return Promise.resolve();\n    }\n    \n    const coverageVariable = this._coverageVariable(module);\n    \n    return Promise.all(\n      assetsToInstrument[module.name]\n        .filter(asset => {\n          return (dispatchedAssets[module.name] || []).indexOf(asset) === -1;\n        })\n        .map(asset => {\n          return pify(fs.readFile)(asset)\n            .then(content => {\n              const instrumenter = new istanbul.Instrumenter({ coverageVariable });\n\n              instrumenter.instrumentSync(\n                content.toString(), \n                asset\n              );\n              \n              global[coverageVariable] = global[coverageVariable] || {};\n              global[coverageVariable][asset] = instrumenter.lastFileCoverage();\n\n              return Promise.resolve();  \n            });\n        })\n    );\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * '\n   * @todo split into several abstractions\n   */\n  run(emitter) {\n    return new Promise((resolve, reject) => {\n      const collector = new istanbul.Collector();\n      const reporter = new istanbul.Reporter();\n      const reporters = this.container.get('reporters', {});\n      const coverageVariables = [];\n      const assetsToInstrument = {};\n      const dispatchedAssets = {};\n      \n      Object.keys(reporters).map(reporterName => {\n        const report = istanbul.Report.create(\n          reporterName, \n          reporters[reporterName] || {}\n        );\n        \n        reporter.reports[reporterName] = report;\n      });\n      \n      emitter.onBlocking(testEvents.asset.test.skip, payload => {\n        if (!this._match(payload.file)) {\n          return Promise.resolve();\n        }\n        \n        const { module, fileAbs } = payload;\n        \n        assetsToInstrument[module.name] = assetsToInstrument[module.name] || [];\n        assetsToInstrument[module.name].push(fileAbs);\n        \n        return Promise.resolve();\n      });\n      \n      emitter.onBlocking(testEvents.asset.tests.end, (mocha, module) => {\n        return this._persistModuleBlankCoverage(\n          assetsToInstrument,\n          dispatchedAssets,\n          module\n        ).then(() => {\n          delete assetsToInstrument[module.name];\n          delete dispatchedAssets[module.name];\n          \n          return Promise.resolve();\n        });\n      });\n      \n      emitter.onBlocking(testEvents.asset.tests.start, (mocha, module) => {\n        return new Promise(resolve => {\n          const instrumenterCache = {};\n          const coverageVariable = this._coverageVariable(module);\n          const instrumenter = new istanbul.Instrumenter({ coverageVariable });\n          \n          coverageVariables.push(coverageVariable);\n          \n          if (mocha) {\n            mocha.loadFiles = (fn => {\n              const self = this;\n              const moduleRoot = module.container.get('root');\n              const coverableAssets = assetsToInstrument[module.name] || [];\n\n              const preprocessor = (source, filename) => {\n                if (coverableAssets.indexOf(filename) !== -1\n                  && self._match(path.relative(moduleRoot, filename))) {\n\n                  if (instrumenterCache.hasOwnProperty(filename)) {\n                    return instrumenterCache[filename];\n                  }\n                  \n                  instrumenterCache[filename] = instrumenter.instrumentSync.call(instrumenter, source, filename);\n                  dispatchedAssets[module.name] = dispatchedAssets[module.name] || [];\n                  dispatchedAssets[module.name].push(filename);\n                  \n                  return instrumenterCache[filename];\n                }\n                \n                return source;\n              };\n              \n              mocha.files.map(file => {\n                file = path.resolve(file);\n                \n                mocha.suite.emit('pre-require', global, file, mocha);\n                mocha.suite.emit(\n                  'require',\n                  ModuleCompile.require(file, {}, preprocessor),\n                  file,\n                  mocha\n                );\n                mocha.suite.emit('post-require', global, file, mocha);\n              });\n              \n              fn && fn();\n            });\n          }\n          \n          resolve();\n        });\n      });\n      \n      emitter.onBlocking(testEvents.assets.test.end, () => {        \n        coverageVariables.map(coverageVariable => {\n          collector.add(global[coverageVariable] || {});\n        });\n        \n        return emitter.emitBlocking(\n          events.coverage.report.create, \n          istanbul, \n          reporter, \n          collector\n        )\n          .then(() => this._dumpCoverageStats(collector, reporter))\n          .then(() => {\n            return emitter.emitBlocking(\n              events.coverage.report.compare, \n              istanbul, \n              reporter, \n              collector\n            );\n          })\n          .then(() => this._doCompare(collector));\n      });\n      \n      emitter.on(testEvents.assets.test.end, () => resolve());\n    });\n  }\n  \n  /**\n   * @param {istanbul.Collector} collector\n   * @param {istanbul.Reporter} reporter\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _dumpCoverageStats(collector, reporter) {\n    return new Promise(resolve => {\n      reporter.write(collector, false, () => {\n        \n        // @todo find a smarter way to indent the output (buffer it?)\n        process.stdout.write('\\n\\n');\n        \n        resolve();\n      });\n    });\n  }\n  \n  /**\n   * @param {EmitModule} module\n   *\n   * @returns {string}\n   *\n   * @private\n   */\n  _coverageVariable(module) {\n    const cleanModuleName = module.name.replace(/[^a-z0-9]/g, '_');\n    \n    return `__recink_coverage__${ cleanModuleName }__`;\n  }\n  \n  /**\n   * @param {string} file\n   *\n   * @returns {boolean}\n   * \n   * @private\n   */\n  _match(file) {\n    const pattern = this.container.get('pattern', []);\n    const ignore = this.container.get('ignore', []);\n\n    const result = pattern.filter(p => this._test(p, file)).length > 0\n      && ignore.filter(i => this._test(i, file)).length <= 0;\n      \n    return result;\n  }\n  \n  /**\n   * @param {string|RegExp} pattern\n   * @param {string} value\n   *\n   * @returns {boolean}\n   *\n   * @private\n   */\n  _test(pattern, value) {\n    if (!(pattern instanceof RegExp)) {\n      return value.indexOf(pattern.toString()) !== -1;\n    }\n    \n    return pattern.test(value);\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Container}\n   */\n  prepareConfig(config, configFile) {\n    return super.prepareConfig(config, configFile)\n      .then(container => {\n        return (new ContainerTransformer(container))\n          .addPattern('pattern')\n          .addPattern('ignore')\n          .transform();\n      });\n  }\n  \n  /**\n   * @returns {Array}\n   */\n  static get COVERAGE_KEYS() {\n    return [ 'lines', 'statements', 'functions', 'branches' ];\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get COVERAGE_FILE() {\n    return 'coverage.json';\n  }\n}\n\nmodule.exports = CoverageComponent;\n",
     "static": true,
     "longname": "src/component/coverage-component.js",
     "access": null,
@@ -5156,64 +5148,12 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 181,
+    "__docId__": 180,
     "kind": "variable",
     "name": "DependantConfigBasedComponent",
     "memberof": "src/component/coverage-component.js",
     "static": true,
     "longname": "src/component/coverage-component.js~DependantConfigBasedComponent",
-    "access": null,
-    "export": false,
-    "importPath": "recink/src/component/coverage-component.js",
-    "importStyle": null,
-    "description": null,
-    "lineNumber": 3,
-    "undocument": true,
-    "unknown": [
-      {
-        "tagName": "@_undocument",
-        "tagValue": ""
-      }
-    ],
-    "type": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 182,
-    "kind": "variable",
-    "name": "istanbul",
-    "memberof": "src/component/coverage-component.js",
-    "static": true,
-    "longname": "src/component/coverage-component.js~istanbul",
-    "access": null,
-    "export": false,
-    "importPath": "recink/src/component/coverage-component.js",
-    "importStyle": null,
-    "description": null,
-    "lineNumber": 4,
-    "undocument": true,
-    "unknown": [
-      {
-        "tagName": "@_undocument",
-        "tagValue": ""
-      }
-    ],
-    "type": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 183,
-    "kind": "variable",
-    "name": "testEvents",
-    "memberof": "src/component/coverage-component.js",
-    "static": true,
-    "longname": "src/component/coverage-component.js~testEvents",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5234,12 +5174,12 @@
     }
   },
   {
-    "__docId__": 184,
+    "__docId__": 181,
     "kind": "variable",
-    "name": "events",
+    "name": "istanbul",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~events",
+    "longname": "src/component/coverage-component.js~istanbul",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5260,12 +5200,12 @@
     }
   },
   {
-    "__docId__": 185,
+    "__docId__": 182,
     "kind": "variable",
-    "name": "ContainerTransformer",
+    "name": "testEvents",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~ContainerTransformer",
+    "longname": "src/component/coverage-component.js~testEvents",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5286,12 +5226,12 @@
     }
   },
   {
-    "__docId__": 186,
+    "__docId__": 183,
     "kind": "variable",
-    "name": "path",
+    "name": "events",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~path",
+    "longname": "src/component/coverage-component.js~events",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5312,12 +5252,12 @@
     }
   },
   {
-    "__docId__": 187,
+    "__docId__": 184,
     "kind": "variable",
-    "name": "fs",
+    "name": "ContainerTransformer",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~fs",
+    "longname": "src/component/coverage-component.js~ContainerTransformer",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5338,12 +5278,12 @@
     }
   },
   {
-    "__docId__": 188,
+    "__docId__": 185,
     "kind": "variable",
-    "name": "pify",
+    "name": "path",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~pify",
+    "longname": "src/component/coverage-component.js~path",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5364,12 +5304,12 @@
     }
   },
   {
-    "__docId__": 189,
+    "__docId__": 186,
     "kind": "variable",
-    "name": "StorageFactory",
+    "name": "fs",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~StorageFactory",
+    "longname": "src/component/coverage-component.js~fs",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5390,12 +5330,12 @@
     }
   },
   {
-    "__docId__": 190,
+    "__docId__": 187,
     "kind": "variable",
-    "name": "ModuleCompile",
+    "name": "pify",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~ModuleCompile",
+    "longname": "src/component/coverage-component.js~pify",
     "access": null,
     "export": false,
     "importPath": "recink/src/component/coverage-component.js",
@@ -5416,58 +5356,18 @@
     }
   },
   {
-    "__docId__": 191,
-    "kind": "class",
-    "name": "CoverageComponent",
+    "__docId__": 188,
+    "kind": "variable",
+    "name": "StorageFactory",
     "memberof": "src/component/coverage-component.js",
     "static": true,
-    "longname": "src/component/coverage-component.js~CoverageComponent",
+    "longname": "src/component/coverage-component.js~StorageFactory",
     "access": null,
-    "export": true,
+    "export": false,
     "importPath": "recink/src/component/coverage-component.js",
-    "importStyle": "CoverageComponent",
-    "description": "Coverage component",
-    "lineNumber": 17,
-    "interface": false,
-    "extends": [
-      "DependantConfigBasedComponent"
-    ]
-  },
-  {
-    "__docId__": 192,
-    "kind": "constructor",
-    "name": "constructor",
-    "memberof": "src/component/coverage-component.js~CoverageComponent",
-    "generator": false,
-    "async": false,
-    "static": false,
-    "longname": "src/component/coverage-component.js~CoverageComponent#constructor",
-    "access": null,
-    "description": "",
-    "lineNumber": 21,
-    "params": [
-      {
-        "nullable": null,
-        "types": [
-          "*"
-        ],
-        "spread": false,
-        "optional": false,
-        "name": "args",
-        "description": ""
-      }
-    ]
-  },
-  {
-    "__docId__": 193,
-    "kind": "member",
-    "name": "_storage",
-    "memberof": "src/component/coverage-component.js~CoverageComponent",
-    "static": false,
-    "longname": "src/component/coverage-component.js~CoverageComponent#_storage",
-    "access": null,
+    "importStyle": null,
     "description": null,
-    "lineNumber": 24,
+    "lineNumber": 13,
     "undocument": true,
     "unknown": [
       {
@@ -5482,7 +5382,99 @@
     }
   },
   {
-    "__docId__": 194,
+    "__docId__": 189,
+    "kind": "variable",
+    "name": "ModuleCompile",
+    "memberof": "src/component/coverage-component.js",
+    "static": true,
+    "longname": "src/component/coverage-component.js~ModuleCompile",
+    "access": null,
+    "export": false,
+    "importPath": "recink/src/component/coverage-component.js",
+    "importStyle": null,
+    "description": null,
+    "lineNumber": 14,
+    "undocument": true,
+    "unknown": [
+      {
+        "tagName": "@_undocument",
+        "tagValue": ""
+      }
+    ],
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 190,
+    "kind": "class",
+    "name": "CoverageComponent",
+    "memberof": "src/component/coverage-component.js",
+    "static": true,
+    "longname": "src/component/coverage-component.js~CoverageComponent",
+    "access": null,
+    "export": true,
+    "importPath": "recink/src/component/coverage-component.js",
+    "importStyle": "CoverageComponent",
+    "description": "Coverage component",
+    "lineNumber": 19,
+    "interface": false,
+    "extends": [
+      "DependantConfigBasedComponent"
+    ]
+  },
+  {
+    "__docId__": 191,
+    "kind": "constructor",
+    "name": "constructor",
+    "memberof": "src/component/coverage-component.js~CoverageComponent",
+    "generator": false,
+    "async": false,
+    "static": false,
+    "longname": "src/component/coverage-component.js~CoverageComponent#constructor",
+    "access": null,
+    "description": "",
+    "lineNumber": 23,
+    "params": [
+      {
+        "nullable": null,
+        "types": [
+          "*"
+        ],
+        "spread": false,
+        "optional": false,
+        "name": "args",
+        "description": ""
+      }
+    ]
+  },
+  {
+    "__docId__": 192,
+    "kind": "member",
+    "name": "_storage",
+    "memberof": "src/component/coverage-component.js~CoverageComponent",
+    "static": false,
+    "longname": "src/component/coverage-component.js~CoverageComponent#_storage",
+    "access": null,
+    "description": null,
+    "lineNumber": 26,
+    "undocument": true,
+    "unknown": [
+      {
+        "tagName": "@_undocument",
+        "tagValue": ""
+      }
+    ],
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
+    "__docId__": 193,
     "kind": "get",
     "name": "name",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5492,7 +5484,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#name",
     "access": null,
     "description": "",
-    "lineNumber": 30,
+    "lineNumber": 32,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5514,7 +5506,7 @@
     }
   },
   {
-    "__docId__": 195,
+    "__docId__": 194,
     "kind": "get",
     "name": "dependencies",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5524,7 +5516,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#dependencies",
     "access": null,
     "description": "",
-    "lineNumber": 37,
+    "lineNumber": 39,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5546,7 +5538,7 @@
     }
   },
   {
-    "__docId__": 196,
+    "__docId__": 195,
     "kind": "get",
     "name": "_comparatorStorage",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5556,7 +5548,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_comparatorStorage",
     "access": "private",
     "description": "",
-    "lineNumber": 46,
+    "lineNumber": 48,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5578,7 +5570,7 @@
     }
   },
   {
-    "__docId__": 197,
+    "__docId__": 196,
     "kind": "member",
     "name": "_storage",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5586,7 +5578,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_storage",
     "access": null,
     "description": null,
-    "lineNumber": 54,
+    "lineNumber": 56,
     "undocument": true,
     "unknown": [
       {
@@ -5601,7 +5593,7 @@
     }
   },
   {
-    "__docId__": 198,
+    "__docId__": 197,
     "kind": "method",
     "name": "_doCompare",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5611,7 +5603,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_doCompare",
     "access": "private",
     "description": "",
-    "lineNumber": 66,
+    "lineNumber": 68,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5640,7 +5632,7 @@
     }
   },
   {
-    "__docId__": 199,
+    "__docId__": 198,
     "kind": "method",
     "name": "_calculateDelta",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5650,7 +5642,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_calculateDelta",
     "access": "private",
     "description": "",
-    "lineNumber": 127,
+    "lineNumber": 129,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5689,7 +5681,7 @@
     }
   },
   {
-    "__docId__": 200,
+    "__docId__": 199,
     "kind": "method",
     "name": "_summarizeCoverage",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5699,7 +5691,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_summarizeCoverage",
     "access": "private",
     "description": "",
-    "lineNumber": 146,
+    "lineNumber": 148,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5728,7 +5720,7 @@
     }
   },
   {
-    "__docId__": 201,
+    "__docId__": 200,
     "kind": "method",
     "name": "_persistModuleBlankCoverage",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5738,7 +5730,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_persistModuleBlankCoverage",
     "access": "private",
     "description": "",
-    "lineNumber": 176,
+    "lineNumber": 178,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5787,7 +5779,7 @@
     }
   },
   {
-    "__docId__": 202,
+    "__docId__": 201,
     "kind": "method",
     "name": "run",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5797,7 +5789,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#run",
     "access": null,
     "description": "",
-    "lineNumber": 214,
+    "lineNumber": 216,
     "todo": [
       "split into several abstractions"
     ],
@@ -5829,7 +5821,7 @@
     }
   },
   {
-    "__docId__": 203,
+    "__docId__": 202,
     "kind": "method",
     "name": "_dumpCoverageStats",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5839,7 +5831,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_dumpCoverageStats",
     "access": "private",
     "description": "",
-    "lineNumber": 346,
+    "lineNumber": 348,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5878,7 +5870,7 @@
     }
   },
   {
-    "__docId__": 204,
+    "__docId__": 203,
     "kind": "method",
     "name": "_coverageVariable",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5888,7 +5880,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_coverageVariable",
     "access": "private",
     "description": "",
-    "lineNumber": 365,
+    "lineNumber": 367,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5917,7 +5909,7 @@
     }
   },
   {
-    "__docId__": 205,
+    "__docId__": 204,
     "kind": "method",
     "name": "_match",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5927,7 +5919,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_match",
     "access": "private",
     "description": "",
-    "lineNumber": 378,
+    "lineNumber": 380,
     "unknown": [
       {
         "tagName": "@returns",
@@ -5956,7 +5948,7 @@
     }
   },
   {
-    "__docId__": 206,
+    "__docId__": 205,
     "kind": "method",
     "name": "_test",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -5966,7 +5958,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#_test",
     "access": "private",
     "description": "",
-    "lineNumber": 396,
+    "lineNumber": 398,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6006,7 +5998,7 @@
     }
   },
   {
-    "__docId__": 207,
+    "__docId__": 206,
     "kind": "method",
     "name": "prepareConfig",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -6016,7 +6008,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent#prepareConfig",
     "access": null,
     "description": "",
-    "lineNumber": 410,
+    "lineNumber": 412,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6055,7 +6047,7 @@
     }
   },
   {
-    "__docId__": 208,
+    "__docId__": 207,
     "kind": "get",
     "name": "COVERAGE_KEYS",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -6065,7 +6057,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent.COVERAGE_KEYS",
     "access": null,
     "description": "",
-    "lineNumber": 423,
+    "lineNumber": 425,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6087,7 +6079,7 @@
     }
   },
   {
-    "__docId__": 209,
+    "__docId__": 208,
     "kind": "get",
     "name": "COVERAGE_FILE",
     "memberof": "src/component/coverage-component.js~CoverageComponent",
@@ -6097,7 +6089,7 @@
     "longname": "src/component/coverage-component.js~CoverageComponent.COVERAGE_FILE",
     "access": null,
     "description": "",
-    "lineNumber": 430,
+    "lineNumber": 432,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6119,7 +6111,7 @@
     }
   },
   {
-    "__docId__": 210,
+    "__docId__": 209,
     "kind": "file",
     "name": "src/component/dependant-config-based-component.js",
     "content": "'use strict';\n\nconst chalk = require('chalk');\nconst ConfigBasedComponent = require('./config-based-component');\n\n/**\n * Abstract configuration aware dependant component\n */\nclass DependantConfigBasedComponent extends ConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [];\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   *\n   * @returns {Promise}\n   */\n  waitConfig(emitter) {\n    return super.waitConfig(emitter)\n      .then(container => {\n        if (container) {\n          if (this.dependencies.length <= 0) {\n            return Promise.resolve(container);\n          }\n          \n          const waitComponents = this.dependencies.map(name => {\n            const component = emitter.component(name);\n            \n            if (!component) {\n              return Promise.resolve({ name, isActive: false });\n            }\n            \n            return component.ready()\n              .then(() => Promise.resolve(component));\n          });\n          \n          return Promise.all(waitComponents)\n            .then(components => {\n              let failedComponents = [];\n              \n              components.map(component => {\n                if (!component.isActive) {\n                  failedComponents.push(component.name);\n                }\n              });\n              \n              if (failedComponents.length > 0) {\n                this.setActive(false);\n                \n                const failedInfo = failedComponents.map(c => chalk.red(c)).join(', ');\n                \n                this.logger.info(\n                  `${ this.logger.emoji.fire } ${ this.name } ~ ${ failedInfo }`\n                );\n              }\n              \n              return Promise.resolve(failedComponents.length <= 0 ? container : null);\n            });\n        }\n        \n        return Promise.resolve(null);\n      });\n  }\n}\n\nmodule.exports = DependantConfigBasedComponent;\n",
@@ -6130,7 +6122,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 211,
+    "__docId__": 210,
     "kind": "variable",
     "name": "chalk",
     "memberof": "src/component/dependant-config-based-component.js",
@@ -6156,7 +6148,7 @@
     }
   },
   {
-    "__docId__": 212,
+    "__docId__": 211,
     "kind": "variable",
     "name": "ConfigBasedComponent",
     "memberof": "src/component/dependant-config-based-component.js",
@@ -6182,7 +6174,7 @@
     }
   },
   {
-    "__docId__": 213,
+    "__docId__": 212,
     "kind": "class",
     "name": "DependantConfigBasedComponent",
     "memberof": "src/component/dependant-config-based-component.js",
@@ -6200,7 +6192,7 @@
     ]
   },
   {
-    "__docId__": 214,
+    "__docId__": 213,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/component/dependant-config-based-component.js~DependantConfigBasedComponent",
@@ -6225,7 +6217,7 @@
     ]
   },
   {
-    "__docId__": 215,
+    "__docId__": 214,
     "kind": "get",
     "name": "dependencies",
     "memberof": "src/component/dependant-config-based-component.js~DependantConfigBasedComponent",
@@ -6257,7 +6249,7 @@
     }
   },
   {
-    "__docId__": 216,
+    "__docId__": 215,
     "kind": "method",
     "name": "waitConfig",
     "memberof": "src/component/dependant-config-based-component.js~DependantConfigBasedComponent",
@@ -6296,7 +6288,7 @@
     }
   },
   {
-    "__docId__": 217,
+    "__docId__": 216,
     "kind": "file",
     "name": "src/component/e2e/events.js",
     "content": "'use strict';\n\nconst dot = require('dot-object');\n\n/**\n * End2End component events\n */\nconst events = {};\n\nevents.$ = [\n  'asset.e2e.skip',\n  'asset.e2e.add',\n  'assets.e2e.start',\n  'assets.e2e.end',\n].map(eventPath => {\n  dot.str(eventPath, eventPath, events);\n  \n  return eventPath;\n});\n\nmodule.exports = events;\n",
@@ -6307,7 +6299,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 218,
+    "__docId__": 217,
     "kind": "variable",
     "name": "dot",
     "memberof": "src/component/e2e/events.js",
@@ -6333,7 +6325,7 @@
     }
   },
   {
-    "__docId__": 219,
+    "__docId__": 218,
     "kind": "variable",
     "name": "events",
     "memberof": "src/component/e2e/events.js",
@@ -6352,7 +6344,7 @@
     }
   },
   {
-    "__docId__": 220,
+    "__docId__": 219,
     "kind": "file",
     "name": "src/component/e2e/testcafe/browsers-registrar.js",
     "content": "'use strict';\n\nconst NightmareProvider = require('./nighmare-browser-provider');\nconst PuppeteerProvider = require('./puppeteer-browser-provider');\nconst testCafeBrowserProviderPool = require('testcafe/lib/browser/provider/pool');\n\nmodule.exports = function register() {\n  testCafeBrowserProviderPool.addProvider('nightmare', NightmareProvider);\n  testCafeBrowserProviderPool.addProvider('puppeteer', PuppeteerProvider);\n};\n",
@@ -6363,7 +6355,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 221,
+    "__docId__": 220,
     "kind": "variable",
     "name": "NightmareProvider",
     "memberof": "src/component/e2e/testcafe/browsers-registrar.js",
@@ -6389,7 +6381,7 @@
     }
   },
   {
-    "__docId__": 222,
+    "__docId__": 221,
     "kind": "variable",
     "name": "PuppeteerProvider",
     "memberof": "src/component/e2e/testcafe/browsers-registrar.js",
@@ -6415,7 +6407,7 @@
     }
   },
   {
-    "__docId__": 223,
+    "__docId__": 222,
     "kind": "variable",
     "name": "testCafeBrowserProviderPool",
     "memberof": "src/component/e2e/testcafe/browsers-registrar.js",
@@ -6441,7 +6433,7 @@
     }
   },
   {
-    "__docId__": 224,
+    "__docId__": 223,
     "kind": "function",
     "name": "register",
     "memberof": "src/component/e2e/testcafe/browsers-registrar.js",
@@ -6465,10 +6457,10 @@
     "params": []
   },
   {
-    "__docId__": 225,
+    "__docId__": 224,
     "kind": "file",
     "name": "src/component/e2e-component.js",
-    "content": "'use strict';\n\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst emitEvents = require('./emit/events');\nconst events = require('./e2e/events');\nconst registerBrowsers = require('./e2e/testcafe/browsers-registrar');\nconst print = require('print');\nconst ContainerTransformer = require('./helper/container-transformer');\nconst createTestCafe = require('testcafe');\nconst Spinner = require('./helper/spinner');\nconst urlExists = require('url-exists');\nconst pify = require('pify');\n\n/**\n * End2End component\n */\nclass E2EComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._testAssets = [];\n    this._stats = {\n      total: 0,\n      processed: 0,\n      ignored: 0,\n    };\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'e2e';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [ 'emit' ];\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * \n   * @private\n   *\n   * @see https://devexpress.github.io/testcafe/documentation/using-testcafe/common-concepts/reporters.html\n   * @see http://devexpress.github.io/testcafe/documentation/using-testcafe/common-concepts/browser-support.html\n   */\n  _run(emitter) {\n    return this._waitUris()\n      .then(() => {\n        return createTestCafe(\n          E2EComponent.DEFAULT_SERVER_HOSTNAME, \n          ...E2EComponent.DEFAULT_SERVER_PORTS\n        ).then(testcafe => {\n          registerBrowsers();\n\n          const runner = testcafe.createRunner();\n          const reporter = this.container.get('reporter', E2EComponent.DEFAULT_REPORTER);\n          const browsers = this.container.get('browsers', E2EComponent.DEFAULT_BROWSERS);\n          \n          return emitter.emitBlocking(\n            events.assets.e2e.start, \n            testcafe, \n            runner, \n            browsers, \n            reporter\n          ).then(() => {\n            return runner\n              .src(this._testAssets)\n              .browsers(browsers)\n              .reporter(reporter)\n              .run(E2EComponent.RUN_OPTIONS);\n          }).then(failedCount => {\n            \n            // @todo find a smarter way to indent the output (buffer it?)\n            process.stdout.write('\\n\\n');\n            \n            return testcafe.close()\n              .then(() => emitter.emitBlocking(events.assets.e2e.end, testcafe, failedCount))\n              .then(() => Promise.resolve(failedCount));\n          });\n        });\n      });\n  }\n  \n  /**\n   * @returns {Promise}\n   *\n   * @private\n   */\n  _waitUris() {\n    const uris = this.container.get('wait.uri', []);\n    \n    if (uris.length <= 0) {\n      return Promise.resolve();\n    }\n    \n    const spinner = new Spinner(\n      `Wait for the following URIs to be available: ${ uris.join(', ') }`\n    );\n    \n    return spinner.then(\n      `All URIs are available:\\n\\t${ uris.join('\\n\\t') }`\n    ).catch(\n      `Some of the following URIs are not available:\\n\\t${ uris.join('\\n\\t') }`\n    ).promise(Promise.all(uris.map(uri => this._waitUri(uri))));\n  }\n  \n  /**\n   * @param {string} uri\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _waitUri(uri) {\n    return new Promise((resolve, reject) => {\n      const timeout = parseInt(this.container.get(\n        'wait.timeout', \n        E2EComponent.DEFAULT_WAIT_TIMEOUT\n      ));\n      const interval = this.container.get(\n        'wait.interval', \n        E2EComponent.DEFAULT_WAIT_INTERVAL\n      );\n      const failTime = Date.now() + timeout;\n      \n      const id = setInterval(() => {\n        pify(urlExists)(uri)\n          .then(exists => {\n            if (exists) {\n              clearInterval(id);\n              resolve();\n            } else if (failTime <= Date.now()) {\n              clearInterval(id);\n              reject(new Error(\n                `The max timeout limit of ${ timeout } reached`\n              ));\n            }\n          })\n          .catch(error => {\n            clearInterval(id);\n            reject(error);\n          });\n      }, interval);\n    });\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  run(emitter) {\n    return new Promise((resolve, reject) => {\n      emitter.onBlocking(emitEvents.module.emit.asset, payload => {          \n        if (!this._match(payload)) {\n          return emitter.emitBlocking(events.asset.e2e.skip, payload);\n        }\n        \n        return emitter.emitBlocking(events.asset.e2e.add, payload)\n          .then(() => {\n            const { fileAbs } = payload;\n            \n            this._testAssets.push(fileAbs);\n          });\n      }, E2EComponent.DEFAULT_PRIORITY);\n      \n      emitter.on(emitEvents.modules.process.end, () => {\n        process.nextTick(() => {\n          if (this._testAssets.length <= 0) {\n            this.logger.info(\n              this.logger.emoji.beer, \n              `Finished processing ${ this.stats.processed } end-to-end test assets`\n            );\n            this.logger.debug(this.dumpStats());\n            \n            return resolve();\n          }\n          \n          this._run(emitter)\n            .then(failedCount => {\n              if (failedCount > 0) {\n                return Promise.reject(new Error(\n                  `There is/are ${ failedCount } end-to-end test case/s failed!`\n                ));\n              }\n              \n              this.logger.info(\n                this.logger.emoji.beer, \n                `Finished processing ${ this.stats.processed } end-to-end test assets`\n              );\n              this.logger.debug(this.dumpStats());\n              \n              resolve();\n            })\n            .catch(error => reject(error));\n        });\n      });\n    });\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Container}\n   */\n  prepareConfig(config, configFile) {\n    return super.prepareConfig(config, configFile)\n      .then(container => {\n        return (new ContainerTransformer(container))\n          .addPattern('pattern')\n          .addPattern('ignore')\n          .transform();\n      });\n  }\n  \n  /**\n   * @param {*} payload\n   *\n   * @returns {boolean}\n   * \n   * @private\n   */\n  _match(payload) {\n    const pattern = this.container.get('pattern', []);\n    const ignore = this.container.get('ignore', []);\n\n    const result = pattern.filter(p => this._test(p, payload.file)).length > 0\n      && ignore.filter(i => this._test(i, payload.file)).length <= 0;\n    \n    if (result) {\n      this.stats.processed++;\n    } else {\n      this.stats.ignored++;\n    }\n    \n    this.stats.total++;\n      \n    return result;\n  }\n  \n  /**\n   * @param {string|RegExp} pattern\n   * @param {string} value\n   *\n   * @returns {boolean}\n   *\n   * @private\n   */\n  _test(pattern, value) {\n    if (!(pattern instanceof RegExp)) {\n      return value.indexOf(pattern.toString()) !== -1;\n    }\n    \n    return pattern.test(value);\n  }\n  \n  /**\n   * @returns {*}\n   */\n  get stats() {\n    return this._stats;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  dumpStats() {\n    return print(this.stats, {\n      showArrayIndices: true,\n      showArrayLength: true,\n      sortProps: false,\n    }).replace(/\\t/g, '   ');\n  }\n  \n  /**\n   * @returns {number[]}\n   */\n  static get DEFAULT_SERVER_PORTS() {\n    return [ 1337, 1338 ];\n  }\n  \n  /**\n   * @returns {*}\n   */\n  static get RUN_OPTIONS() {\n    return {\n      skipJsErrors: true,\n      assertionTimeout: 60000,\n      quarantineMode: true,\n    };\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  static get DEFAULT_BROWSERS() {\n    return [ 'puppeteer' ];\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get DEFAULT_REPORTER() {\n    return 'spec';\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get DEFAULT_SERVER_HOSTNAME() {\n    return 'localhost';\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_WAIT_INTERVAL() {\n    return 200;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_WAIT_TIMEOUT() {\n    return 15000;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_PRIORITY() {\n    return 10;\n  }\n}\n\nmodule.exports = E2EComponent;\n",
+    "content": "'use strict';\n\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst emitEvents = require('./emit/events');\nconst events = require('./e2e/events');\nconst registerBrowsers = require('./e2e/testcafe/browsers-registrar');\nconst print = require('print');\nconst ContainerTransformer = require('./helper/container-transformer');\nconst createTestCafe = require('testcafe');\nconst Spinner = require('./helper/spinner');\nconst urlExists = require('url-exists');\nconst pify = require('pify');\nconst path = require('path');\n\n/**\n * End2End component\n */\nclass E2EComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._testAssets = [];\n    this._stats = {\n      total: 0,\n      processed: 0,\n      ignored: 0,\n    };\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'e2e';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [ 'emit' ];\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   * \n   * @private\n   *\n   * @see https://devexpress.github.io/testcafe/documentation/using-testcafe/common-concepts/reporters.html\n   * @see http://devexpress.github.io/testcafe/documentation/using-testcafe/common-concepts/browser-support.html\n   */\n  _run(emitter) {\n    return this._waitUris()\n      .then(() => {\n        return createTestCafe(\n          E2EComponent.DEFAULT_SERVER_HOSTNAME, \n          ...E2EComponent.DEFAULT_SERVER_PORTS\n        ).then(testcafe => {\n          registerBrowsers();\n\n          const runner = testcafe.createRunner();\n          const reporter = this.container.get('reporter', E2EComponent.DEFAULT_REPORTER);\n          const browsers = this.container.get('browsers', E2EComponent.DEFAULT_BROWSERS);\n          \n          if (this.container.get('screenshot.enabled', false)) {\n            runner.screenshots(\n              path.resolve(this.container.get('screenshot.path', process.cwd())), \n              this.container.get('screenshot.take-on-fail', false)\n            );\n          }\n\n          return emitter.emitBlocking(\n            events.assets.e2e.start, \n            testcafe, \n            runner, \n            browsers, \n            reporter\n          ).then(() => {\n            return runner\n              .src(this._testAssets)\n              .browsers(browsers)\n              .reporter(reporter)\n              .run(E2EComponent.RUN_OPTIONS);\n          }).then(failedCount => {\n            \n            // @todo find a smarter way to indent the output (buffer it?)\n            process.stdout.write('\\n\\n');\n            \n            return testcafe.close()\n              .then(() => emitter.emitBlocking(events.assets.e2e.end, testcafe, failedCount))\n              .then(() => Promise.resolve(failedCount));\n          });\n        });\n      });\n  }\n  \n  /**\n   * @returns {Promise}\n   *\n   * @private\n   */\n  _waitUris() {\n    const uris = this.container.get('wait.uri', []);\n    \n    if (uris.length <= 0) {\n      return Promise.resolve();\n    }\n    \n    const spinner = new Spinner(\n      `Wait for the following URIs to be available: ${ uris.join(', ') }`\n    );\n    \n    return spinner.then(\n      `All URIs are available:\\n\\t${ uris.join('\\n\\t') }`\n    ).catch(\n      `Some of the following URIs are not available:\\n\\t${ uris.join('\\n\\t') }`\n    ).promise(Promise.all(uris.map(uri => this._waitUri(uri))));\n  }\n  \n  /**\n   * @param {string} uri\n   * \n   * @returns {Promise}\n   *\n   * @private\n   */\n  _waitUri(uri) {\n    return new Promise((resolve, reject) => {\n      const timeout = parseInt(this.container.get(\n        'wait.timeout', \n        E2EComponent.DEFAULT_WAIT_TIMEOUT\n      ));\n      const interval = this.container.get(\n        'wait.interval', \n        E2EComponent.DEFAULT_WAIT_INTERVAL\n      );\n      const failTime = Date.now() + timeout;\n      \n      const id = setInterval(() => {\n        pify(urlExists)(uri)\n          .then(exists => {\n            if (exists) {\n              clearInterval(id);\n              resolve();\n            } else if (failTime <= Date.now()) {\n              clearInterval(id);\n              reject(new Error(\n                `The max timeout limit of ${ timeout } reached`\n              ));\n            }\n          })\n          .catch(error => {\n            clearInterval(id);\n            reject(error);\n          });\n      }, interval);\n    });\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  run(emitter) {\n    return new Promise((resolve, reject) => {\n      emitter.onBlocking(emitEvents.module.emit.asset, payload => {          \n        if (!this._match(payload)) {\n          return emitter.emitBlocking(events.asset.e2e.skip, payload);\n        }\n        \n        return emitter.emitBlocking(events.asset.e2e.add, payload)\n          .then(() => {\n            const { fileAbs } = payload;\n            \n            this._testAssets.push(fileAbs);\n          });\n      }, E2EComponent.DEFAULT_PRIORITY);\n      \n      emitter.on(emitEvents.modules.process.end, () => {\n        process.nextTick(() => {\n          if (this._testAssets.length <= 0) {\n            this.logger.info(\n              this.logger.emoji.beer, \n              `Finished processing ${ this.stats.processed } end-to-end test assets`\n            );\n            this.logger.debug(this.dumpStats());\n            \n            return resolve();\n          }\n          \n          this._run(emitter)\n            .then(failedCount => {\n              if (failedCount > 0) {\n                return Promise.reject(new Error(\n                  `There is/are ${ failedCount } end-to-end test case/s failed!`\n                ));\n              }\n              \n              this.logger.info(\n                this.logger.emoji.beer, \n                `Finished processing ${ this.stats.processed } end-to-end test assets`\n              );\n              this.logger.debug(this.dumpStats());\n              \n              resolve();\n            })\n            .catch(error => reject(error));\n        });\n      });\n    });\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Container}\n   */\n  prepareConfig(config, configFile) {\n    return super.prepareConfig(config, configFile)\n      .then(container => {\n        return (new ContainerTransformer(container))\n          .addPattern('pattern')\n          .addPattern('ignore')\n          .transform();\n      });\n  }\n  \n  /**\n   * @param {*} payload\n   *\n   * @returns {boolean}\n   * \n   * @private\n   */\n  _match(payload) {\n    const pattern = this.container.get('pattern', []);\n    const ignore = this.container.get('ignore', []);\n\n    const result = pattern.filter(p => this._test(p, payload.file)).length > 0\n      && ignore.filter(i => this._test(i, payload.file)).length <= 0;\n    \n    if (result) {\n      this.stats.processed++;\n    } else {\n      this.stats.ignored++;\n    }\n    \n    this.stats.total++;\n      \n    return result;\n  }\n  \n  /**\n   * @param {string|RegExp} pattern\n   * @param {string} value\n   *\n   * @returns {boolean}\n   *\n   * @private\n   */\n  _test(pattern, value) {\n    if (!(pattern instanceof RegExp)) {\n      return value.indexOf(pattern.toString()) !== -1;\n    }\n    \n    return pattern.test(value);\n  }\n  \n  /**\n   * @returns {*}\n   */\n  get stats() {\n    return this._stats;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  dumpStats() {\n    return print(this.stats, {\n      showArrayIndices: true,\n      showArrayLength: true,\n      sortProps: false,\n    }).replace(/\\t/g, '   ');\n  }\n  \n  /**\n   * @returns {number[]}\n   */\n  static get DEFAULT_SERVER_PORTS() {\n    return [ 1337, 1338 ];\n  }\n  \n  /**\n   * @returns {*}\n   */\n  static get RUN_OPTIONS() {\n    return {\n\n      // @todo figure out options that really matters!\n      // skipJsErrors: true,\n      // quarantineMode: true,\n    };\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  static get DEFAULT_BROWSERS() {\n    return [ 'puppeteer' ];\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get DEFAULT_REPORTER() {\n    return 'spec';\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get DEFAULT_SERVER_HOSTNAME() {\n    return 'localhost';\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_WAIT_INTERVAL() {\n    return 200;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_WAIT_TIMEOUT() {\n    return 15000;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_PRIORITY() {\n    return 10;\n  }\n}\n\nmodule.exports = E2EComponent;\n",
     "static": true,
     "longname": "src/component/e2e-component.js",
     "access": null,
@@ -6476,7 +6468,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 226,
+    "__docId__": 225,
     "kind": "variable",
     "name": "DependantConfigBasedComponent",
     "memberof": "src/component/e2e-component.js",
@@ -6502,7 +6494,7 @@
     }
   },
   {
-    "__docId__": 227,
+    "__docId__": 226,
     "kind": "variable",
     "name": "emitEvents",
     "memberof": "src/component/e2e-component.js",
@@ -6528,7 +6520,7 @@
     }
   },
   {
-    "__docId__": 228,
+    "__docId__": 227,
     "kind": "variable",
     "name": "events",
     "memberof": "src/component/e2e-component.js",
@@ -6554,7 +6546,7 @@
     }
   },
   {
-    "__docId__": 229,
+    "__docId__": 228,
     "kind": "variable",
     "name": "registerBrowsers",
     "memberof": "src/component/e2e-component.js",
@@ -6580,7 +6572,7 @@
     }
   },
   {
-    "__docId__": 230,
+    "__docId__": 229,
     "kind": "variable",
     "name": "print",
     "memberof": "src/component/e2e-component.js",
@@ -6606,7 +6598,7 @@
     }
   },
   {
-    "__docId__": 231,
+    "__docId__": 230,
     "kind": "variable",
     "name": "ContainerTransformer",
     "memberof": "src/component/e2e-component.js",
@@ -6632,7 +6624,7 @@
     }
   },
   {
-    "__docId__": 232,
+    "__docId__": 231,
     "kind": "variable",
     "name": "createTestCafe",
     "memberof": "src/component/e2e-component.js",
@@ -6658,7 +6650,7 @@
     }
   },
   {
-    "__docId__": 233,
+    "__docId__": 232,
     "kind": "variable",
     "name": "Spinner",
     "memberof": "src/component/e2e-component.js",
@@ -6684,7 +6676,7 @@
     }
   },
   {
-    "__docId__": 234,
+    "__docId__": 233,
     "kind": "variable",
     "name": "urlExists",
     "memberof": "src/component/e2e-component.js",
@@ -6710,7 +6702,7 @@
     }
   },
   {
-    "__docId__": 235,
+    "__docId__": 234,
     "kind": "variable",
     "name": "pify",
     "memberof": "src/component/e2e-component.js",
@@ -6736,6 +6728,32 @@
     }
   },
   {
+    "__docId__": 235,
+    "kind": "variable",
+    "name": "path",
+    "memberof": "src/component/e2e-component.js",
+    "static": true,
+    "longname": "src/component/e2e-component.js~path",
+    "access": null,
+    "export": false,
+    "importPath": "recink/src/component/e2e-component.js",
+    "importStyle": null,
+    "description": null,
+    "lineNumber": 13,
+    "undocument": true,
+    "unknown": [
+      {
+        "tagName": "@_undocument",
+        "tagValue": ""
+      }
+    ],
+    "type": {
+      "types": [
+        "*"
+      ]
+    }
+  },
+  {
     "__docId__": 236,
     "kind": "class",
     "name": "E2EComponent",
@@ -6747,7 +6765,7 @@
     "importPath": "recink/src/component/e2e-component.js",
     "importStyle": "E2EComponent",
     "description": "End2End component",
-    "lineNumber": 17,
+    "lineNumber": 18,
     "interface": false,
     "extends": [
       "DependantConfigBasedComponent"
@@ -6764,7 +6782,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#constructor",
     "access": null,
     "description": "",
-    "lineNumber": 21,
+    "lineNumber": 22,
     "params": [
       {
         "nullable": null,
@@ -6787,7 +6805,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#_testAssets",
     "access": null,
     "description": null,
-    "lineNumber": 24,
+    "lineNumber": 25,
     "undocument": true,
     "unknown": [
       {
@@ -6810,7 +6828,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#_stats",
     "access": null,
     "description": null,
-    "lineNumber": 25,
+    "lineNumber": 26,
     "undocument": true,
     "unknown": [
       {
@@ -6835,7 +6853,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#name",
     "access": null,
     "description": "",
-    "lineNumber": 35,
+    "lineNumber": 36,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6867,7 +6885,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#dependencies",
     "access": null,
     "description": "",
-    "lineNumber": 42,
+    "lineNumber": 43,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6903,7 +6921,7 @@
       "https://devexpress.github.io/testcafe/documentation/using-testcafe/common-concepts/reporters.html",
       "http://devexpress.github.io/testcafe/documentation/using-testcafe/common-concepts/browser-support.html"
     ],
-    "lineNumber": 56,
+    "lineNumber": 57,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6942,7 +6960,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#_waitUris",
     "access": "private",
     "description": "",
-    "lineNumber": 99,
+    "lineNumber": 107,
     "unknown": [
       {
         "tagName": "@returns",
@@ -6970,7 +6988,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#_waitUri",
     "access": "private",
     "description": "",
-    "lineNumber": 124,
+    "lineNumber": 132,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7009,7 +7027,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#run",
     "access": null,
     "description": "",
-    "lineNumber": 162,
+    "lineNumber": 170,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7048,7 +7066,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#prepareConfig",
     "access": null,
     "description": "",
-    "lineNumber": 217,
+    "lineNumber": 225,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7097,7 +7115,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#_match",
     "access": "private",
     "description": "",
-    "lineNumber": 234,
+    "lineNumber": 242,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7136,7 +7154,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#_test",
     "access": "private",
     "description": "",
-    "lineNumber": 260,
+    "lineNumber": 268,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7186,7 +7204,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#stats",
     "access": null,
     "description": "",
-    "lineNumber": 271,
+    "lineNumber": 279,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7218,7 +7236,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent#dumpStats",
     "access": null,
     "description": "",
-    "lineNumber": 278,
+    "lineNumber": 286,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7246,7 +7264,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.DEFAULT_SERVER_PORTS",
     "access": null,
     "description": "",
-    "lineNumber": 289,
+    "lineNumber": 297,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7278,7 +7296,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.RUN_OPTIONS",
     "access": null,
     "description": "",
-    "lineNumber": 296,
+    "lineNumber": 304,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7295,7 +7313,7 @@
     },
     "type": {
       "types": [
-        "{\"skipJsErrors\": boolean, \"assertionTimeout\": number, \"quarantineMode\": boolean}"
+        "{}"
       ]
     }
   },
@@ -7310,7 +7328,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.DEFAULT_BROWSERS",
     "access": null,
     "description": "",
-    "lineNumber": 307,
+    "lineNumber": 316,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7342,7 +7360,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.DEFAULT_REPORTER",
     "access": null,
     "description": "",
-    "lineNumber": 314,
+    "lineNumber": 323,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7374,7 +7392,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.DEFAULT_SERVER_HOSTNAME",
     "access": null,
     "description": "",
-    "lineNumber": 321,
+    "lineNumber": 330,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7406,7 +7424,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.DEFAULT_WAIT_INTERVAL",
     "access": null,
     "description": "",
-    "lineNumber": 328,
+    "lineNumber": 337,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7438,7 +7456,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.DEFAULT_WAIT_TIMEOUT",
     "access": null,
     "description": "",
-    "lineNumber": 335,
+    "lineNumber": 344,
     "unknown": [
       {
         "tagName": "@returns",
@@ -7470,7 +7488,7 @@
     "longname": "src/component/e2e-component.js~E2EComponent.DEFAULT_PRIORITY",
     "access": null,
     "description": "",
-    "lineNumber": 342,
+    "lineNumber": 351,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13401,7 +13419,7 @@
     "__docId__": 464,
     "kind": "file",
     "name": "src/component/test-component.js",
-    "content": "'use strict';\n\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst emitEvents = require('./emit/events');\nconst events = require('./test/events');\nconst print = require('print');\nconst ContainerTransformer = require('./helper/container-transformer');\nconst Mocha = require('mocha');\nconst domain = require('domain');\n\n/**\n * Test component\n */\nclass TestComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._stats = {\n      total: 0,\n      processed: 0,\n      ignored: 0,\n    };\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'test';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [ 'emit' ];\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  run(emitter) {\n    return new Promise((resolve, reject) => {\n      const mochas = {};\n      const mochaOptions = this.container.get('mocha.options', {});\n      \n      emitter.onBlocking(emitEvents.module.emit.asset, payload => {\n        if (!this._match(payload)) {\n          return emitter.emitBlocking(events.asset.test.skip, payload);\n        }\n        \n        const { fileAbs, module } = payload;\n        \n        mochas[module.name] = mochas[module.name] \n          || new Mocha(mochaOptions);\n\n        return emitter.emitBlocking(events.asset.test.add, mochas[module.name])\n          .then(() => {\n            this.logger.info(this.logger.emoji.fist, `Test ${ fileAbs }`);\n            \n            mochas[module.name].addFile(fileAbs);\n            \n            return Promise.resolve();\n          });\n      }, TestComponent.DEFAULT_PRIORITY);\n      \n      emitter.onBlocking(emitEvents.module.process.end, module => {\n        const mocha = mochas[module.name] || null;\n        \n        return emitter.emitBlocking(events.asset.tests.start, mocha, module)\n          .then(() => {\n            return mocha ? new Promise((resolve, reject) => {\n              mocha.run(failures => {\n                if (failures > 0) {\n                  return reject(new Error(\n                    `Tests failed in module ${ module.name } with ${ failures } failures`\n                  ));\n                }\n                \n                resolve();\n              });\n            }) : Promise.resolve();\n          })\n          .then(() => emitter.emitBlocking(events.asset.tests.end, mocha, module));\n      }, TestComponent.DEFAULT_PRIORITY);\n      \n      emitter.on(emitEvents.modules.process.end, () => {\n        this.waitProcessing()\n          .then(() => emitter.emitBlocking(events.assets.test.end, this))\n          .then(() => {\n            this.logger.info(\n              this.logger.emoji.beer, \n              `Finished processing ${ this.stats.processed } test assets`\n            );\n            this.logger.debug(this.dumpStats());\n            \n            resolve();\n          })\n          .catch(error => reject(error));\n      });\n    });\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Container}\n   */\n  prepareConfig(config, configFile) {\n    return super.prepareConfig(config, configFile)\n      .then(container => {\n        return (new ContainerTransformer(container))\n          .addPattern('pattern')\n          .addPattern('ignore')\n          .transform();\n      });\n  }\n  \n  /**\n   * @param {*} payload\n   *\n   * @returns {boolean}\n   * \n   * @private\n   */\n  _match(payload) {\n    const pattern = this.container.get('pattern', []);\n    const ignore = this.container.get('ignore', []);\n\n    const result = pattern.filter(p => this._test(p, payload.file)).length > 0\n      && ignore.filter(i => this._test(i, payload.file)).length <= 0;\n    \n    if (result) {\n      this.stats.processed++;\n    } else {\n      this.stats.ignored++;\n    }\n    \n    this.stats.total++;\n      \n    return result;\n  }\n  \n  /**\n   * @param {string|RegExp} pattern\n   * @param {string} value\n   *\n   * @returns {boolean}\n   *\n   * @private\n   */\n  _test(pattern, value) {\n    if (!(pattern instanceof RegExp)) {\n      return value.indexOf(pattern.toString()) !== -1;\n    }\n    \n    return pattern.test(value);\n  }\n  \n  /**\n   * @returns {*}\n   */\n  get stats() {\n    return this._stats;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  dumpStats() {\n    return print(this.stats, {\n      showArrayIndices: true,\n      showArrayLength: true,\n      sortProps: false,\n    }).replace(/\\t/g, '   ');\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_PRIORITY() {\n    return 10;\n  }\n}\n\nmodule.exports = TestComponent;\n",
+    "content": "'use strict';\n\nconst DependantConfigBasedComponent = require('./dependant-config-based-component');\nconst emitEvents = require('./emit/events');\nconst events = require('./test/events');\nconst print = require('print');\nconst ContainerTransformer = require('./helper/container-transformer');\nconst Mocha = require('mocha');\n\n/**\n * Test component\n */\nclass TestComponent extends DependantConfigBasedComponent {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._stats = {\n      total: 0,\n      processed: 0,\n      ignored: 0,\n    };\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get name() {\n    return 'test';\n  }\n  \n  /**\n   * @returns {string[]}\n   */\n  get dependencies() {\n    return [ 'emit' ];\n  }\n  \n  /**\n   * @param {Emitter} emitter\n   * \n   * @returns {Promise}\n   */\n  run(emitter) {\n    return new Promise((resolve, reject) => {\n      const mochas = {};\n      const mochaOptions = this.container.get('mocha.options', {});\n      \n      emitter.onBlocking(emitEvents.module.emit.asset, payload => {\n        if (!this._match(payload)) {\n          return emitter.emitBlocking(events.asset.test.skip, payload);\n        }\n        \n        const { fileAbs, module } = payload;\n        \n        mochas[module.name] = mochas[module.name] \n          || new Mocha(mochaOptions);\n\n        return emitter.emitBlocking(events.asset.test.add, mochas[module.name])\n          .then(() => {\n            this.logger.info(this.logger.emoji.fist, `Test ${ fileAbs }`);\n            \n            mochas[module.name].addFile(fileAbs);\n            \n            return Promise.resolve();\n          });\n      }, TestComponent.DEFAULT_PRIORITY);\n      \n      emitter.onBlocking(emitEvents.module.process.end, module => {\n        const mocha = mochas[module.name] || null;\n        \n        return emitter.emitBlocking(events.asset.tests.start, mocha, module)\n          .then(() => {\n            return mocha ? new Promise((resolve, reject) => {\n              mocha.run(failures => {\n                if (failures > 0) {\n                  return reject(new Error(\n                    `Tests failed in module ${ module.name } with ${ failures } failures`\n                  ));\n                }\n                \n                resolve();\n              });\n            }) : Promise.resolve();\n          })\n          .then(() => emitter.emitBlocking(events.asset.tests.end, mocha, module));\n      }, TestComponent.DEFAULT_PRIORITY);\n      \n      emitter.on(emitEvents.modules.process.end, () => {\n        this.waitProcessing()\n          .then(() => emitter.emitBlocking(events.assets.test.end, this))\n          .then(() => {\n            this.logger.info(\n              this.logger.emoji.beer, \n              `Finished processing ${ this.stats.processed } test assets`\n            );\n            this.logger.debug(this.dumpStats());\n            \n            resolve();\n          })\n          .catch(error => reject(error));\n      });\n    });\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Container}\n   */\n  prepareConfig(config, configFile) {\n    return super.prepareConfig(config, configFile)\n      .then(container => {\n        return (new ContainerTransformer(container))\n          .addPattern('pattern')\n          .addPattern('ignore')\n          .transform();\n      });\n  }\n  \n  /**\n   * @param {*} payload\n   *\n   * @returns {boolean}\n   * \n   * @private\n   */\n  _match(payload) {\n    const pattern = this.container.get('pattern', []);\n    const ignore = this.container.get('ignore', []);\n\n    const result = pattern.filter(p => this._test(p, payload.file)).length > 0\n      && ignore.filter(i => this._test(i, payload.file)).length <= 0;\n    \n    if (result) {\n      this.stats.processed++;\n    } else {\n      this.stats.ignored++;\n    }\n    \n    this.stats.total++;\n      \n    return result;\n  }\n  \n  /**\n   * @param {string|RegExp} pattern\n   * @param {string} value\n   *\n   * @returns {boolean}\n   *\n   * @private\n   */\n  _test(pattern, value) {\n    if (!(pattern instanceof RegExp)) {\n      return value.indexOf(pattern.toString()) !== -1;\n    }\n    \n    return pattern.test(value);\n  }\n  \n  /**\n   * @returns {*}\n   */\n  get stats() {\n    return this._stats;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  dumpStats() {\n    return print(this.stats, {\n      showArrayIndices: true,\n      showArrayLength: true,\n      sortProps: false,\n    }).replace(/\\t/g, '   ');\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_PRIORITY() {\n    return 10;\n  }\n}\n\nmodule.exports = TestComponent;\n",
     "static": true,
     "longname": "src/component/test-component.js",
     "access": null,
@@ -13566,32 +13584,6 @@
   },
   {
     "__docId__": 471,
-    "kind": "variable",
-    "name": "domain",
-    "memberof": "src/component/test-component.js",
-    "static": true,
-    "longname": "src/component/test-component.js~domain",
-    "access": null,
-    "export": false,
-    "importPath": "recink/src/component/test-component.js",
-    "importStyle": null,
-    "description": null,
-    "lineNumber": 9,
-    "undocument": true,
-    "unknown": [
-      {
-        "tagName": "@_undocument",
-        "tagValue": ""
-      }
-    ],
-    "type": {
-      "types": [
-        "*"
-      ]
-    }
-  },
-  {
-    "__docId__": 472,
     "kind": "class",
     "name": "TestComponent",
     "memberof": "src/component/test-component.js",
@@ -13602,14 +13594,14 @@
     "importPath": "recink/src/component/test-component.js",
     "importStyle": "TestComponent",
     "description": "Test component",
-    "lineNumber": 14,
+    "lineNumber": 13,
     "interface": false,
     "extends": [
       "DependantConfigBasedComponent"
     ]
   },
   {
-    "__docId__": 473,
+    "__docId__": 472,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13619,7 +13611,7 @@
     "longname": "src/component/test-component.js~TestComponent#constructor",
     "access": null,
     "description": "",
-    "lineNumber": 18,
+    "lineNumber": 17,
     "params": [
       {
         "nullable": null,
@@ -13634,7 +13626,7 @@
     ]
   },
   {
-    "__docId__": 474,
+    "__docId__": 473,
     "kind": "member",
     "name": "_stats",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13642,7 +13634,7 @@
     "longname": "src/component/test-component.js~TestComponent#_stats",
     "access": null,
     "description": null,
-    "lineNumber": 21,
+    "lineNumber": 20,
     "undocument": true,
     "unknown": [
       {
@@ -13657,7 +13649,7 @@
     }
   },
   {
-    "__docId__": 475,
+    "__docId__": 474,
     "kind": "get",
     "name": "name",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13667,7 +13659,7 @@
     "longname": "src/component/test-component.js~TestComponent#name",
     "access": null,
     "description": "",
-    "lineNumber": 31,
+    "lineNumber": 30,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13689,7 +13681,7 @@
     }
   },
   {
-    "__docId__": 476,
+    "__docId__": 475,
     "kind": "get",
     "name": "dependencies",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13699,7 +13691,7 @@
     "longname": "src/component/test-component.js~TestComponent#dependencies",
     "access": null,
     "description": "",
-    "lineNumber": 38,
+    "lineNumber": 37,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13721,7 +13713,7 @@
     }
   },
   {
-    "__docId__": 477,
+    "__docId__": 476,
     "kind": "method",
     "name": "run",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13731,7 +13723,7 @@
     "longname": "src/component/test-component.js~TestComponent#run",
     "access": null,
     "description": "",
-    "lineNumber": 47,
+    "lineNumber": 46,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13760,7 +13752,7 @@
     }
   },
   {
-    "__docId__": 478,
+    "__docId__": 477,
     "kind": "method",
     "name": "prepareConfig",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13770,7 +13762,7 @@
     "longname": "src/component/test-component.js~TestComponent#prepareConfig",
     "access": null,
     "description": "",
-    "lineNumber": 115,
+    "lineNumber": 114,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13809,7 +13801,7 @@
     }
   },
   {
-    "__docId__": 479,
+    "__docId__": 478,
     "kind": "method",
     "name": "_match",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13819,7 +13811,7 @@
     "longname": "src/component/test-component.js~TestComponent#_match",
     "access": "private",
     "description": "",
-    "lineNumber": 132,
+    "lineNumber": 131,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13848,7 +13840,7 @@
     }
   },
   {
-    "__docId__": 480,
+    "__docId__": 479,
     "kind": "method",
     "name": "_test",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13858,7 +13850,7 @@
     "longname": "src/component/test-component.js~TestComponent#_test",
     "access": "private",
     "description": "",
-    "lineNumber": 158,
+    "lineNumber": 157,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13898,7 +13890,7 @@
     }
   },
   {
-    "__docId__": 481,
+    "__docId__": 480,
     "kind": "get",
     "name": "stats",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13908,7 +13900,7 @@
     "longname": "src/component/test-component.js~TestComponent#stats",
     "access": null,
     "description": "",
-    "lineNumber": 169,
+    "lineNumber": 168,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13930,7 +13922,7 @@
     }
   },
   {
-    "__docId__": 482,
+    "__docId__": 481,
     "kind": "method",
     "name": "dumpStats",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13940,7 +13932,7 @@
     "longname": "src/component/test-component.js~TestComponent#dumpStats",
     "access": null,
     "description": "",
-    "lineNumber": 176,
+    "lineNumber": 175,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13958,7 +13950,7 @@
     }
   },
   {
-    "__docId__": 483,
+    "__docId__": 482,
     "kind": "get",
     "name": "DEFAULT_PRIORITY",
     "memberof": "src/component/test-component.js~TestComponent",
@@ -13968,7 +13960,7 @@
     "longname": "src/component/test-component.js~TestComponent.DEFAULT_PRIORITY",
     "access": null,
     "description": "",
-    "lineNumber": 187,
+    "lineNumber": 186,
     "unknown": [
       {
         "tagName": "@returns",
@@ -13990,7 +13982,7 @@
     }
   },
   {
-    "__docId__": 484,
+    "__docId__": 483,
     "kind": "file",
     "name": "src/config/abstract-config.js",
     "content": "'use strict';\n\nconst fs = require('fs');\nconst pify = require('pify');\nconst fse = require('fs-extra');\n\n/**\n * Abstract configuration manager\n */\nclass AbstractConfig {\n  /**\n   * @param {string} file\n   */\n  constructor(file = null) {\n    this._file = file;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  get file() {\n    return this._file;\n  }\n  \n  /**\n   * @param {string} file\n   *\n   * @returns {Promise}\n   */\n  load(file = null) {\n    const configFile = file || this.file;\n    \n    return fse.pathExists(configFile)\n      .then(exists => {\n        if (!exists) {\n          return Promise.reject(new Error(\n            `Missing configuration file ${ configFile }`\n          ));\n        }\n        \n        return pify(fs.readFile)(configFile)\n          .then(rawConfig => this.decode(rawConfig));\n      });\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} file\n   *\n   * @returns {Promise}\n   */\n  dump(config, file = null) {\n    return this.encode(config)\n      .then(rawConfig => pify(fs.writeFile)(file || this.file, rawConfig));\n  }\n  \n  /**\n   * @param {string} rawConfig\n   *\n   * @returns {Promise}\n   */\n  decode(rawConfig) {\n    return Promise.reject(new Error(`${ this.constructor.name }.decode(rawConfig) not implemented!`));\n  }\n  \n  /**\n   * @param {*} config\n   *\n   * @returns {Promise}\n   */\n  encode(config) {\n    return Promise.reject(new Error(`${ this.constructor.name }.encode(config) not implemented!`));\n  }\n}\n\nmodule.exports = AbstractConfig;\n",
@@ -14001,7 +13993,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 485,
+    "__docId__": 484,
     "kind": "variable",
     "name": "fs",
     "memberof": "src/config/abstract-config.js",
@@ -14027,7 +14019,7 @@
     }
   },
   {
-    "__docId__": 486,
+    "__docId__": 485,
     "kind": "variable",
     "name": "pify",
     "memberof": "src/config/abstract-config.js",
@@ -14053,7 +14045,7 @@
     }
   },
   {
-    "__docId__": 487,
+    "__docId__": 486,
     "kind": "variable",
     "name": "fse",
     "memberof": "src/config/abstract-config.js",
@@ -14079,7 +14071,7 @@
     }
   },
   {
-    "__docId__": 488,
+    "__docId__": 487,
     "kind": "class",
     "name": "AbstractConfig",
     "memberof": "src/config/abstract-config.js",
@@ -14094,7 +14086,7 @@
     "interface": false
   },
   {
-    "__docId__": 489,
+    "__docId__": 488,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/config/abstract-config.js~AbstractConfig",
@@ -14119,7 +14111,7 @@
     ]
   },
   {
-    "__docId__": 490,
+    "__docId__": 489,
     "kind": "member",
     "name": "_file",
     "memberof": "src/config/abstract-config.js~AbstractConfig",
@@ -14142,7 +14134,7 @@
     }
   },
   {
-    "__docId__": 491,
+    "__docId__": 490,
     "kind": "get",
     "name": "file",
     "memberof": "src/config/abstract-config.js~AbstractConfig",
@@ -14174,7 +14166,7 @@
     }
   },
   {
-    "__docId__": 492,
+    "__docId__": 491,
     "kind": "method",
     "name": "load",
     "memberof": "src/config/abstract-config.js~AbstractConfig",
@@ -14213,7 +14205,7 @@
     }
   },
   {
-    "__docId__": 493,
+    "__docId__": 492,
     "kind": "method",
     "name": "dump",
     "memberof": "src/config/abstract-config.js~AbstractConfig",
@@ -14262,7 +14254,7 @@
     }
   },
   {
-    "__docId__": 494,
+    "__docId__": 493,
     "kind": "method",
     "name": "decode",
     "memberof": "src/config/abstract-config.js~AbstractConfig",
@@ -14301,7 +14293,7 @@
     }
   },
   {
-    "__docId__": 495,
+    "__docId__": 494,
     "kind": "method",
     "name": "encode",
     "memberof": "src/config/abstract-config.js~AbstractConfig",
@@ -14340,7 +14332,7 @@
     }
   },
   {
-    "__docId__": 496,
+    "__docId__": 495,
     "kind": "file",
     "name": "src/config/factory.js",
     "content": "'use strict';\n\nconst AbstractConfig = require('./abstract-config');\n\n/**\n * Configuration factory\n */\nclass Factory {\n  /**\n   * @param {string} file\n   *\n   * @returns {YamlConfig}\n   */\n  static guess(file) {\n    if (/\\.ya?ml$/i.test(file)) {\n      return this.yaml(file);\n    }\n    \n    throw new Error(`Unknown config format in ${ file }`);\n  }\n  \n  /**\n   * @param {string} name\n   * @param {*} args\n   *\n   * @returns {AbstractConfig}\n   */\n  static create(name, ...args) {\n    const ConfigImplementation = require(`./${ name }-config`);\n    const config = new ConfigImplementation(...args);\n    \n    if (!(config instanceof AbstractConfig)) {\n      throw new Error(`${ name } config should be an implementation of AbstractConfig`);\n    }\n    \n    return config;\n  }\n  \n  /**\n   * @param {*} args\n   *\n   * @returns {YamlConfig}\n   */\n  static yaml(...args) {\n    return this.create('yaml', ...args);\n  }\n}\n\nmodule.exports = Factory;\n",
@@ -14351,7 +14343,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 497,
+    "__docId__": 496,
     "kind": "variable",
     "name": "AbstractConfig",
     "memberof": "src/config/factory.js",
@@ -14377,7 +14369,7 @@
     }
   },
   {
-    "__docId__": 498,
+    "__docId__": 497,
     "kind": "class",
     "name": "Factory",
     "memberof": "src/config/factory.js",
@@ -14392,7 +14384,7 @@
     "interface": false
   },
   {
-    "__docId__": 499,
+    "__docId__": 498,
     "kind": "method",
     "name": "guess",
     "memberof": "src/config/factory.js~Factory",
@@ -14431,7 +14423,7 @@
     }
   },
   {
-    "__docId__": 500,
+    "__docId__": 499,
     "kind": "method",
     "name": "create",
     "memberof": "src/config/factory.js~Factory",
@@ -14480,7 +14472,7 @@
     }
   },
   {
-    "__docId__": 501,
+    "__docId__": 500,
     "kind": "method",
     "name": "yaml",
     "memberof": "src/config/factory.js~Factory",
@@ -14519,7 +14511,7 @@
     }
   },
   {
-    "__docId__": 502,
+    "__docId__": 501,
     "kind": "file",
     "name": "src/config/yaml-config.js",
     "content": "'use strict';\n\nconst AbstractConfig = require('./abstract-config');\nconst yamlReader = require('yaml-js');\nconst yamlWriter = require('yamljs');\n\n/**\n * YAML configuration manager\n */\nclass YamlConfig extends AbstractConfig {\n  /**\n   * @param {string} rawConfig\n   *\n   * @returns {Promise}\n   */\n  decode(rawConfig) {\n    try {\n      return Promise.resolve(yamlReader.load(rawConfig));\n    } catch (error) {\n      return Promise.reject(error);\n    }\n  }\n  \n  /**\n   * @param {*} config\n   *\n   * @returns {Promise}\n   */\n  encode(config) {\n    try {\n      return Promise.resolve(yamlWriter.stringify(\n        config, \n        YamlConfig.INLINE_DEPTH, \n        YamlConfig.INDENTATION\n      ));\n    } catch (error) {\n      return Promise.reject(error);\n    }\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get INLINE_DEPTH() {\n    return 8;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get INDENTATION() {\n    return 2;\n  }\n}\n\nmodule.exports = YamlConfig;\n",
@@ -14530,7 +14522,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 503,
+    "__docId__": 502,
     "kind": "variable",
     "name": "AbstractConfig",
     "memberof": "src/config/yaml-config.js",
@@ -14556,7 +14548,7 @@
     }
   },
   {
-    "__docId__": 504,
+    "__docId__": 503,
     "kind": "variable",
     "name": "yamlReader",
     "memberof": "src/config/yaml-config.js",
@@ -14582,7 +14574,7 @@
     }
   },
   {
-    "__docId__": 505,
+    "__docId__": 504,
     "kind": "variable",
     "name": "yamlWriter",
     "memberof": "src/config/yaml-config.js",
@@ -14608,7 +14600,7 @@
     }
   },
   {
-    "__docId__": 506,
+    "__docId__": 505,
     "kind": "class",
     "name": "YamlConfig",
     "memberof": "src/config/yaml-config.js",
@@ -14626,7 +14618,7 @@
     ]
   },
   {
-    "__docId__": 507,
+    "__docId__": 506,
     "kind": "method",
     "name": "decode",
     "memberof": "src/config/yaml-config.js~YamlConfig",
@@ -14665,7 +14657,7 @@
     }
   },
   {
-    "__docId__": 508,
+    "__docId__": 507,
     "kind": "method",
     "name": "encode",
     "memberof": "src/config/yaml-config.js~YamlConfig",
@@ -14704,7 +14696,7 @@
     }
   },
   {
-    "__docId__": 509,
+    "__docId__": 508,
     "kind": "get",
     "name": "INLINE_DEPTH",
     "memberof": "src/config/yaml-config.js~YamlConfig",
@@ -14736,7 +14728,7 @@
     }
   },
   {
-    "__docId__": 510,
+    "__docId__": 509,
     "kind": "get",
     "name": "INDENTATION",
     "memberof": "src/config/yaml-config.js~YamlConfig",
@@ -14768,7 +14760,7 @@
     }
   },
   {
-    "__docId__": 511,
+    "__docId__": 510,
     "kind": "file",
     "name": "src/container.js",
     "content": "'use strict';\n\nconst print = require('print');\nconst dot = require('dot-object');\ndot.overwrite = true;\n\n/**\n * Configuration container\n */\nclass Container {\n  /**\n   * @param {*} config\n   */\n  constructor(config = {}) {\n    this._config = config;\n  }\n  \n  /**\n   * @param {*} config\n   *\n   * @returns {Container}\n   */\n  reload(config) {\n    this._config = config;\n    \n    return this;\n  }\n  \n  /**\n   * @returns {Array}\n   */\n  listKeys() {\n    return Object.keys(this._config);\n  }\n  \n  /**\n   * @param {string} path\n   * @param {*} value\n   *\n   * @returns {Container}\n   */\n  set(path, value) {\n    dot.str(path, value, this._config);\n    \n    return this;\n  }\n  \n  /**\n   * @param {string} path\n   * @param {*} defaultValue\n   *\n   * @returns {*}\n   */\n  get(path, defaultValue = null) {\n    if (!this.has(path)) {\n      return defaultValue;\n    }\n    \n    return dot.pick(path, this._config);\n  }\n  \n  /**\n   * @param {string} path\n   *\n   * @returns {boolean}\n   */\n  has(path) {\n    return typeof dot.pick(path, this._config) !== 'undefined';\n  }\n  \n  /**\n   * @returns {string}\n   */\n  dump() {\n    return print(this.raw, {\n      showArrayIndices: true,\n      showArrayLength: true,\n      sortProps: false,\n    }).replace(/\\t/g, '   ');\n  }\n  \n  /**\n   * @returns {*}\n   */\n  get raw() {\n    return this._config;\n  }\n}\n\nmodule.exports = Container;\n",
@@ -14779,7 +14771,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 512,
+    "__docId__": 511,
     "kind": "variable",
     "name": "print",
     "memberof": "src/container.js",
@@ -14805,7 +14797,7 @@
     }
   },
   {
-    "__docId__": 513,
+    "__docId__": 512,
     "kind": "variable",
     "name": "dot",
     "memberof": "src/container.js",
@@ -14831,7 +14823,7 @@
     }
   },
   {
-    "__docId__": 514,
+    "__docId__": 513,
     "kind": "class",
     "name": "Container",
     "memberof": "src/container.js",
@@ -14846,7 +14838,7 @@
     "interface": false
   },
   {
-    "__docId__": 515,
+    "__docId__": 514,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/container.js~Container",
@@ -14871,7 +14863,7 @@
     ]
   },
   {
-    "__docId__": 516,
+    "__docId__": 515,
     "kind": "member",
     "name": "_config",
     "memberof": "src/container.js~Container",
@@ -14894,7 +14886,7 @@
     }
   },
   {
-    "__docId__": 517,
+    "__docId__": 516,
     "kind": "method",
     "name": "reload",
     "memberof": "src/container.js~Container",
@@ -14933,7 +14925,7 @@
     }
   },
   {
-    "__docId__": 518,
+    "__docId__": 517,
     "kind": "member",
     "name": "_config",
     "memberof": "src/container.js~Container",
@@ -14956,7 +14948,7 @@
     }
   },
   {
-    "__docId__": 519,
+    "__docId__": 518,
     "kind": "method",
     "name": "listKeys",
     "memberof": "src/container.js~Container",
@@ -14984,7 +14976,7 @@
     }
   },
   {
-    "__docId__": 520,
+    "__docId__": 519,
     "kind": "method",
     "name": "set",
     "memberof": "src/container.js~Container",
@@ -15033,7 +15025,7 @@
     }
   },
   {
-    "__docId__": 521,
+    "__docId__": 520,
     "kind": "method",
     "name": "get",
     "memberof": "src/container.js~Container",
@@ -15082,7 +15074,7 @@
     }
   },
   {
-    "__docId__": 522,
+    "__docId__": 521,
     "kind": "method",
     "name": "has",
     "memberof": "src/container.js~Container",
@@ -15121,7 +15113,7 @@
     }
   },
   {
-    "__docId__": 523,
+    "__docId__": 522,
     "kind": "method",
     "name": "dump",
     "memberof": "src/container.js~Container",
@@ -15149,7 +15141,7 @@
     }
   },
   {
-    "__docId__": 524,
+    "__docId__": 523,
     "kind": "get",
     "name": "raw",
     "memberof": "src/container.js~Container",
@@ -15181,7 +15173,7 @@
     }
   },
   {
-    "__docId__": 525,
+    "__docId__": 524,
     "kind": "file",
     "name": "src/emitter.js",
     "content": "'use strict';\n\nconst EventEmitter = require('events');\n\n/**\n * Extended Emitter implementation\n */\nclass Emitter extends EventEmitter {\n  /**\n   * @param {*} args\n   */\n  constructor(...args) {\n    super(...args);\n    \n    this._blockingListeners = {};\n    this._processing = {};\n    this._parallel = {};\n  }\n  \n  /**\n   * @param {string} event\n   * @param {number} count\n   *\n   * @returns {Emitter}\n   */\n  maxParallel(event, count) {\n    this._parallel[event] = count;\n    \n    return this;\n  }\n  \n  /**\n   * @param {string} event\n   * @param {*} args\n   *\n   * @returns {Promise}\n   */\n  emitBlocking(event, ...args) {\n    return this._waitAllowParallel(event)\n      .then(() => this._dispatch(event, args))\n      .then(() => {\n        this\n          ._cleanupListeners(event)\n          ._removeParallel(event)\n          .emit(event, ...args);\n        \n        return Promise.resolve();\n      })\n      .catch(error => {\n        this\n          ._cleanupListeners(event)\n          ._removeParallel(event);\n        \n        return Promise.reject(error);\n      });\n  }\n  \n  /**\n   * @param {string} event\n   * @param {function} listener\n   * @param {number} priority\n   *\n   * @returns {Emitter}\n   */\n  onBlocking(event, listener, priority = Emitter.DEFAULT_PRIORITY) {\n    return this._pushListener(event, listener, priority, 'on');\n  }\n  \n  /**\n   * @param {string} event\n   * @param {function} listener\n   * @param {number} priority\n   *\n   * @returns {Emitter}\n   */\n  onceBlocking(event, listener, priority = Emitter.DEFAULT_PRIORITY) {\n    return this._pushListener(event, listener, priority, 'once');\n  }\n  \n  /**\n   * @param {string} event\n   *\n   * @returns {Emitter}\n   *\n   * @private\n   */\n  _removeParallel(event) {\n    if (!this._processing.hasOwnProperty(event)) {\n      return this;\n    }\n    \n    this._processing[event]--;\n    \n    return this;\n  }\n  \n  /**\n   * @param {string} event\n   *\n   * @returns {Emitter}\n   *\n   * @private\n   */\n  _addParallel(event) {\n    this._processing[event] = this._processing[event] || 0;\n    this._processing[event]++;\n    \n    return this;\n  }\n  \n  /**\n   * @param {string} event\n   *\n   * @returns {boolean}\n   *\n   * @private\n   */\n  _allowParallel(event) {\n    return !this._parallel.hasOwnProperty(event)\n      || !this._processing.hasOwnProperty(event)\n      || this._processing[event] < this._parallel[event];\n  }\n  \n  /**\n   * @param {string} event\n   * @param {number} interval\n   *\n   * @returns {Promise}\n   *\n   * @private\n   */\n  _waitAllowParallel(event, interval = 100) {\n    if (this._allowParallel(event)) {\n      this._addParallel(event);\n      return Promise.resolve();\n    }\n    \n    return new Promise(resolve => {\n      const id = setInterval(() => {\n        if (this._allowParallel(event)) {\n          this._addParallel(event);\n          clearInterval(id);\n          process.nextTick(() => resolve());\n        }\n      }, interval);\n    });\n  }\n  \n  /**\n   * @param {string} event\n   * @param {function} listener\n   * @param {number} priority\n   * @param {string} method\n   *\n   * @returns {Emitter}\n   *\n   * @private\n   */\n  _pushListener(event, listener, priority, method) {\n    this._blockingListeners[event] = this._blockingListeners[event] || [];\n    this._blockingListeners[event].push({ listener, priority, method });\n    this._blockingListeners[event].sort((a, b) => {\n      return b.priority - a.priority;\n    });\n    \n    return this;\n  }\n  \n  /**\n   * @param {string} event\n   *\n   * @returns {Emitter}\n   * \n   * @private\n   */\n  _cleanupListeners(event) {\n    if (!this._blockingListeners.hasOwnProperty(event) ) {\n      return this;\n    }\n    \n    this._blockingListeners[event] = this._blockingListeners[event].filter(l => !!l);\n    \n    return this;\n  }\n  \n  /**\n   * @param {string} event\n   * @param {*} args\n   * @param {number} _i\n   * \n   * @returns {Promise}\n   * \n   * @private\n   */\n  _dispatch(event, args, _i = 0) {    \n    if (!this._blockingListeners.hasOwnProperty(event) \n      || this._blockingListeners[event].length < _i + 1) {\n      return Promise.resolve();\n    }\n    \n    const dispatcher = this._blockingListeners[event][_i];\n    const result = dispatcher.listener(...args);\n    \n    if (dispatcher.method === 'once') {\n      delete this._blockingListeners[event][_i];\n    }\n    \n    if (!result || typeof result !== 'object' || !(result instanceof Promise)) {\n      return this._dispatch(event, args, _i + 1);\n    }\n    \n    return result.then(() => this._dispatch(event, args, _i + 1));\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEFAULT_PRIORITY() {\n    return 0;\n  }\n}\n\nmodule.exports = Emitter;\n",
@@ -15192,7 +15184,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 526,
+    "__docId__": 525,
     "kind": "variable",
     "name": "EventEmitter",
     "memberof": "src/emitter.js",
@@ -15218,7 +15210,7 @@
     }
   },
   {
-    "__docId__": 527,
+    "__docId__": 526,
     "kind": "class",
     "name": "Emitter",
     "memberof": "src/emitter.js",
@@ -15236,7 +15228,7 @@
     ]
   },
   {
-    "__docId__": 528,
+    "__docId__": 527,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/emitter.js~Emitter",
@@ -15261,7 +15253,7 @@
     ]
   },
   {
-    "__docId__": 529,
+    "__docId__": 528,
     "kind": "member",
     "name": "_blockingListeners",
     "memberof": "src/emitter.js~Emitter",
@@ -15284,7 +15276,7 @@
     }
   },
   {
-    "__docId__": 530,
+    "__docId__": 529,
     "kind": "member",
     "name": "_processing",
     "memberof": "src/emitter.js~Emitter",
@@ -15307,7 +15299,7 @@
     }
   },
   {
-    "__docId__": 531,
+    "__docId__": 530,
     "kind": "member",
     "name": "_parallel",
     "memberof": "src/emitter.js~Emitter",
@@ -15330,7 +15322,7 @@
     }
   },
   {
-    "__docId__": 532,
+    "__docId__": 531,
     "kind": "method",
     "name": "maxParallel",
     "memberof": "src/emitter.js~Emitter",
@@ -15379,7 +15371,7 @@
     }
   },
   {
-    "__docId__": 533,
+    "__docId__": 532,
     "kind": "method",
     "name": "emitBlocking",
     "memberof": "src/emitter.js~Emitter",
@@ -15428,7 +15420,7 @@
     }
   },
   {
-    "__docId__": 534,
+    "__docId__": 533,
     "kind": "method",
     "name": "onBlocking",
     "memberof": "src/emitter.js~Emitter",
@@ -15487,7 +15479,7 @@
     }
   },
   {
-    "__docId__": 535,
+    "__docId__": 534,
     "kind": "method",
     "name": "onceBlocking",
     "memberof": "src/emitter.js~Emitter",
@@ -15546,7 +15538,7 @@
     }
   },
   {
-    "__docId__": 536,
+    "__docId__": 535,
     "kind": "method",
     "name": "_removeParallel",
     "memberof": "src/emitter.js~Emitter",
@@ -15585,7 +15577,7 @@
     }
   },
   {
-    "__docId__": 537,
+    "__docId__": 536,
     "kind": "method",
     "name": "_addParallel",
     "memberof": "src/emitter.js~Emitter",
@@ -15624,7 +15616,7 @@
     }
   },
   {
-    "__docId__": 538,
+    "__docId__": 537,
     "kind": "method",
     "name": "_allowParallel",
     "memberof": "src/emitter.js~Emitter",
@@ -15663,7 +15655,7 @@
     }
   },
   {
-    "__docId__": 539,
+    "__docId__": 538,
     "kind": "method",
     "name": "_waitAllowParallel",
     "memberof": "src/emitter.js~Emitter",
@@ -15712,7 +15704,7 @@
     }
   },
   {
-    "__docId__": 540,
+    "__docId__": 539,
     "kind": "method",
     "name": "_pushListener",
     "memberof": "src/emitter.js~Emitter",
@@ -15781,7 +15773,7 @@
     }
   },
   {
-    "__docId__": 541,
+    "__docId__": 540,
     "kind": "method",
     "name": "_cleanupListeners",
     "memberof": "src/emitter.js~Emitter",
@@ -15820,7 +15812,7 @@
     }
   },
   {
-    "__docId__": 542,
+    "__docId__": 541,
     "kind": "method",
     "name": "_dispatch",
     "memberof": "src/emitter.js~Emitter",
@@ -15879,7 +15871,7 @@
     }
   },
   {
-    "__docId__": 543,
+    "__docId__": 542,
     "kind": "get",
     "name": "DEFAULT_PRIORITY",
     "memberof": "src/emitter.js~Emitter",
@@ -15911,7 +15903,7 @@
     }
   },
   {
-    "__docId__": 544,
+    "__docId__": 543,
     "kind": "file",
     "name": "src/events.js",
     "content": "'use strict';\n\nconst dot = require('dot-object');\n\n/**\n * REciNK main events\n */\nconst events = {};\n\nevents.$ = [\n  'config.preprocess',\n  'config.load',\n  'components.load',\n  'components.run',\n  'component.load',\n  'component.init',\n  'component.run',\n  'component.teardown',\n  'component.ready',\n  'component.subscribe',\n].map(eventPath => {\n  dot.str(eventPath, eventPath, events);\n  \n  return eventPath;\n});\n\nmodule.exports = events;\n",
@@ -15922,7 +15914,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 545,
+    "__docId__": 544,
     "kind": "variable",
     "name": "dot",
     "memberof": "src/events.js",
@@ -15948,7 +15940,7 @@
     }
   },
   {
-    "__docId__": 546,
+    "__docId__": 545,
     "kind": "variable",
     "name": "events",
     "memberof": "src/events.js",
@@ -15967,7 +15959,7 @@
     }
   },
   {
-    "__docId__": 547,
+    "__docId__": 546,
     "kind": "file",
     "name": "src/helper/env.js",
     "content": "'use strict';\n\n/**\n * Environment helpers\n */\nclass Env {\n  /**\n   * @returns {boolean}\n   */\n  static get isCI() {\n    return Env.isTravis;\n  }\n  \n  /**\n   * @returns {boolean}\n   */\n  static get isTravis() {\n    const isCI = !!(Env.read('CI', false) || Env.read('CONTINUOUS_INTEGRATION', false));\n    \n    return !!(isCI && Env.read('TRAVIS', false));\n  }\n  \n  /**\n   * @returns {boolean}\n   */\n  static get isGlobalInstallation() {\n    return !!Env.read('npm_config_global', false);\n  }\n  \n  /**\n   * @param {string} name\n   * \n   * @returns {*}\n   */\n  static exists(name) {\n    return process.env.hasOwnProperty(name);\n  }\n  \n  /**\n   * @param {string} name\n   * @param {*} defaultValue\n   * \n   * @returns {*}\n   */\n  static read(name, defaultValue = null) {\n    if (!Env.exists(name)) {\n      return defaultValue;\n    }\n    \n    return process.env[name];\n  }\n}\n\nmodule.exports = Env;\n",
@@ -15978,7 +15970,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 548,
+    "__docId__": 547,
     "kind": "class",
     "name": "Env",
     "memberof": "src/helper/env.js",
@@ -15993,7 +15985,7 @@
     "interface": false
   },
   {
-    "__docId__": 549,
+    "__docId__": 548,
     "kind": "get",
     "name": "isCI",
     "memberof": "src/helper/env.js~Env",
@@ -16025,7 +16017,7 @@
     }
   },
   {
-    "__docId__": 550,
+    "__docId__": 549,
     "kind": "get",
     "name": "isTravis",
     "memberof": "src/helper/env.js~Env",
@@ -16057,7 +16049,7 @@
     }
   },
   {
-    "__docId__": 551,
+    "__docId__": 550,
     "kind": "get",
     "name": "isGlobalInstallation",
     "memberof": "src/helper/env.js~Env",
@@ -16089,7 +16081,7 @@
     }
   },
   {
-    "__docId__": 552,
+    "__docId__": 551,
     "kind": "method",
     "name": "exists",
     "memberof": "src/helper/env.js~Env",
@@ -16128,7 +16120,7 @@
     }
   },
   {
-    "__docId__": 553,
+    "__docId__": 552,
     "kind": "method",
     "name": "read",
     "memberof": "src/helper/env.js~Env",
@@ -16177,7 +16169,7 @@
     }
   },
   {
-    "__docId__": 554,
+    "__docId__": 553,
     "kind": "file",
     "name": "src/logger.js",
     "content": "'use strict';\n\nconst chalk = require('chalk');\n\n/**\n * Logger abstraction\n */\nclass Logger {\n  /**\n   * @returns {chalk} chalk\n   */\n  static get chalk() {\n    return chalk;\n  }\n  \n  /**\n   * @param {*} logger\n   *\n   * @returns {Logger}\n   */\n  static customLogger(logger) {\n    this._customLogger = logger;\n    \n    return this;\n  }\n  \n  /**\n   * @param {number} level\n   *\n   * @returns {Logger}\n   */\n  static level(level) {\n    this._dbgLevel = level;\n    \n    return this;\n  }\n  \n  /**\n   * @param {number} level\n   *\n   * @returns {Logger}\n   */\n  static addLevel(level) {\n    this._dbgLevel = this._level | level;\n    \n    return this;\n  }\n  \n  /**\n   * @param {*} args\n   * \n   * @returns {Logger}\n   */\n  static debug(...args) {\n    return this._exec('debug', ...args);\n  }\n  \n  /**\n   * @param {*} args\n   * \n   * @returns {Logger}\n   */\n  static log(...args) {\n    return this._exec('log', ...args);\n  }\n  \n  /**\n   * @param {*} args\n   * \n   * @returns {Logger}\n   */\n  static info(...args) {\n    return this._exec('info', ...args);\n  }\n  \n  /**\n   * @param {*} args\n   * \n   * @returns {Logger}\n   */\n  static warn(...args) {\n    return this._exec('warn', ...args);\n  }\n  \n  /**\n   * @param {*} args\n   * \n   * @returns {Logger}\n   */\n  static error(...args) {\n    return this._exec('error', ...args);\n  }\n  \n  /**\n   * @returns {*}\n   *\n   * @private\n   */\n  static get _logger() {\n    return this._customLogger || console;\n  }\n  \n  /**\n   * @returns {number}\n   *\n   * @private\n   */\n  static get _level() {\n    return this._dbgLevel || (this.WARN | this.ERROR);\n  }\n  \n  /**\n   * @param {string} method\n   * @param {*} args\n   *\n   * @returns {Logger}\n   * \n   * @private\n   */\n  static _exec(method, ...args) {\n    if (this._logger instanceof console.constructor) {\n      if (this._level & this[method.toUpperCase()]) {\n        if (method === 'debug') {\n          method = 'log';\n        }\n        \n        this._logger[method](\n          this._color(method).open,\n          ...args,\n          this._color(method).close\n        );\n      }\n    } else { // rely on winston compatible logger\n      this._logger[method](...args);\n    }\n    \n    return this;\n  }\n  \n  /**\n   * @param {string} method\n   * \n   * @returns {string}\n   *\n   * @private\n   */\n  static _color(method) {\n    let color;\n    \n    switch (method) {\n      case 'info':\n        color = 'green';\n        break;  \n      case 'warn':\n        color = 'yellow';\n        break;   \n      case 'error':\n        color = 'red';\n        break;    \n      case 'log':\n      default:\n        color = 'white';\n        break;\n    }\n    \n    return chalk.styles[color];\n  }\n  \n  /**\n   * @returns {*}\n   */\n  static get emoji() {\n    return {\n      rocket: '🚀 ',\n      cross: '❌ ',\n      check: '✅ ',\n      banana: '🍌 ',\n      smiley: '😃 ',\n      fire: '🔥 ',\n      diamond: '💎 ',\n      gift: '🎁 ',\n      poop: '💩 ',\n      magic: '✨ ',\n      hat: '🎩 ',\n      new: '🆕 ',\n      fist: '👊 ',\n      beer: '🍺 ',\n      bicycle: '🚲 ',\n      star: '⭐️ ',\n      moon_full: '🌔 ',\n      moon_half: '🌓 ',\n      moon_empty: '🌘 ',\n    };\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get ALL() {\n    return this.LOG | this.DEBUG | this.INFO | this.WARN | this.ERROR;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get LOG() {\n    return 1;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get DEBUG() {\n    return 2;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get INFO() {\n    return 4;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get WARN() {\n    return 8;\n  }\n  \n  /**\n   * @returns {number}\n   */\n  static get ERROR() {\n    return 16;\n  }\n}\n\nmodule.exports = Logger;\n",
@@ -16188,7 +16180,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 555,
+    "__docId__": 554,
     "kind": "variable",
     "name": "chalk",
     "memberof": "src/logger.js",
@@ -16214,7 +16206,7 @@
     }
   },
   {
-    "__docId__": 556,
+    "__docId__": 555,
     "kind": "class",
     "name": "Logger",
     "memberof": "src/logger.js",
@@ -16229,7 +16221,7 @@
     "interface": false
   },
   {
-    "__docId__": 557,
+    "__docId__": 556,
     "kind": "get",
     "name": "chalk",
     "memberof": "src/logger.js~Logger",
@@ -16261,7 +16253,7 @@
     }
   },
   {
-    "__docId__": 558,
+    "__docId__": 557,
     "kind": "method",
     "name": "customLogger",
     "memberof": "src/logger.js~Logger",
@@ -16300,7 +16292,7 @@
     }
   },
   {
-    "__docId__": 559,
+    "__docId__": 558,
     "kind": "member",
     "name": "_customLogger",
     "memberof": "src/logger.js~Logger",
@@ -16323,7 +16315,7 @@
     }
   },
   {
-    "__docId__": 560,
+    "__docId__": 559,
     "kind": "method",
     "name": "level",
     "memberof": "src/logger.js~Logger",
@@ -16362,7 +16354,7 @@
     }
   },
   {
-    "__docId__": 561,
+    "__docId__": 560,
     "kind": "member",
     "name": "_dbgLevel",
     "memberof": "src/logger.js~Logger",
@@ -16385,7 +16377,7 @@
     }
   },
   {
-    "__docId__": 562,
+    "__docId__": 561,
     "kind": "method",
     "name": "addLevel",
     "memberof": "src/logger.js~Logger",
@@ -16424,7 +16416,7 @@
     }
   },
   {
-    "__docId__": 563,
+    "__docId__": 562,
     "kind": "member",
     "name": "_dbgLevel",
     "memberof": "src/logger.js~Logger",
@@ -16447,7 +16439,7 @@
     }
   },
   {
-    "__docId__": 564,
+    "__docId__": 563,
     "kind": "method",
     "name": "debug",
     "memberof": "src/logger.js~Logger",
@@ -16486,7 +16478,7 @@
     }
   },
   {
-    "__docId__": 565,
+    "__docId__": 564,
     "kind": "method",
     "name": "log",
     "memberof": "src/logger.js~Logger",
@@ -16525,7 +16517,7 @@
     }
   },
   {
-    "__docId__": 566,
+    "__docId__": 565,
     "kind": "method",
     "name": "info",
     "memberof": "src/logger.js~Logger",
@@ -16564,7 +16556,7 @@
     }
   },
   {
-    "__docId__": 567,
+    "__docId__": 566,
     "kind": "method",
     "name": "warn",
     "memberof": "src/logger.js~Logger",
@@ -16603,7 +16595,7 @@
     }
   },
   {
-    "__docId__": 568,
+    "__docId__": 567,
     "kind": "method",
     "name": "error",
     "memberof": "src/logger.js~Logger",
@@ -16642,7 +16634,7 @@
     }
   },
   {
-    "__docId__": 569,
+    "__docId__": 568,
     "kind": "get",
     "name": "_logger",
     "memberof": "src/logger.js~Logger",
@@ -16674,7 +16666,7 @@
     }
   },
   {
-    "__docId__": 570,
+    "__docId__": 569,
     "kind": "get",
     "name": "_level",
     "memberof": "src/logger.js~Logger",
@@ -16706,7 +16698,7 @@
     }
   },
   {
-    "__docId__": 571,
+    "__docId__": 570,
     "kind": "method",
     "name": "_exec",
     "memberof": "src/logger.js~Logger",
@@ -16755,7 +16747,7 @@
     }
   },
   {
-    "__docId__": 572,
+    "__docId__": 571,
     "kind": "method",
     "name": "_color",
     "memberof": "src/logger.js~Logger",
@@ -16794,7 +16786,7 @@
     }
   },
   {
-    "__docId__": 573,
+    "__docId__": 572,
     "kind": "get",
     "name": "emoji",
     "memberof": "src/logger.js~Logger",
@@ -16826,7 +16818,7 @@
     }
   },
   {
-    "__docId__": 574,
+    "__docId__": 573,
     "kind": "get",
     "name": "ALL",
     "memberof": "src/logger.js~Logger",
@@ -16858,7 +16850,7 @@
     }
   },
   {
-    "__docId__": 575,
+    "__docId__": 574,
     "kind": "get",
     "name": "LOG",
     "memberof": "src/logger.js~Logger",
@@ -16890,7 +16882,7 @@
     }
   },
   {
-    "__docId__": 576,
+    "__docId__": 575,
     "kind": "get",
     "name": "DEBUG",
     "memberof": "src/logger.js~Logger",
@@ -16922,7 +16914,7 @@
     }
   },
   {
-    "__docId__": 577,
+    "__docId__": 576,
     "kind": "get",
     "name": "INFO",
     "memberof": "src/logger.js~Logger",
@@ -16954,7 +16946,7 @@
     }
   },
   {
-    "__docId__": 578,
+    "__docId__": 577,
     "kind": "get",
     "name": "WARN",
     "memberof": "src/logger.js~Logger",
@@ -16986,7 +16978,7 @@
     }
   },
   {
-    "__docId__": 579,
+    "__docId__": 578,
     "kind": "get",
     "name": "ERROR",
     "memberof": "src/logger.js~Logger",
@@ -17018,10 +17010,10 @@
     }
   },
   {
-    "__docId__": 580,
+    "__docId__": 579,
     "kind": "file",
     "name": "src/recink.js",
-    "content": "'use strict';\n\nconst path = require('path');\nconst Emitter = require('./emitter');\nconst events = require('./events');\nconst configFactory = require('./config/factory');\nconst Container = require('./container');\nconst AbstractComponent = require('./component/abstract-component');\nconst logger = require('./logger');\nconst merge = require('merge');\n\n/**\n * Recink entry point\n */\nclass Recink extends Emitter {\n  constructor() {\n    super();\n    \n    this._config = {};\n    this._components = [];\n    this._container = new Container();\n    \n    this._registerDebugers();\n  }\n  \n  /**\n   * @private\n   */\n  _registerDebugers() {\n    this.on(events.config.load, (container, configFile) => {\n      logger.info(logger.emoji.smiley, `Load config from ${ configFile }`);\n      logger.debug(container.dump());\n    });\n    \n    this.on(events.components.load, (...components) => {\n      logger.debug(\n        'Loading components -',\n        components.map(c => c.name).join(', ') || 'None'\n      );\n    });\n    \n    this.on(events.component.load, component => {\n      logger.debug(`Load component ${ component.name }`);\n    });\n    \n    this.on(events.component.subscribe, component => {\n      logger.debug(`Component ${ component.name } is subscribed`);\n    });\n    \n    this.on(events.component.ready, component => {\n      logger.debug(`Component ${ component.name } is ready`);\n    });\n    \n    this.on(events.components.run, (...components) => {\n      components.map(component => {\n        logger.info(\n          component.isActive ? logger.emoji.check : logger.emoji.cross,\n          `${ component.name.toUpperCase() } component`\n        );\n      });\n    });\n  }\n  \n  /**\n   * @returns {Promise}\n   */\n  run() {\n    this.emit(events.components.run, ...this._components);\n    \n    const activeComponents = this._components\n      .filter(component => component.isActive);\n      \n    if (activeComponents.length <= 0) {\n      return Promise.resolve();\n    }\n\n    return Promise.all(activeComponents.map(component => {\n      this.emit(events.component.init, component);\n      \n      return component.init(this);\n    }))\n    .then(() => {\n      return Promise.all(activeComponents.map(component => {\n        this.emit(events.component.run, component);\n        \n        return component.run(this);\n      }));\n    })\n    .then(() => {\n      return Promise.all(this._components.map(component => {\n        this.emit(events.component.teardown, component);\n        \n        return component.teardown(this);\n      }));\n    });\n  }\n  \n  /**\n   * @param {Function} targetClass\n   *\n   * @returns {string}\n   *\n   * @private\n   */\n  _getBaseClass(targetClass) {\n    if (targetClass instanceof Function) {\n      let baseClass = targetClass;\n\n      while (baseClass) {\n        const newBaseClass = Object.getPrototypeOf(baseClass);\n\n        if (newBaseClass && newBaseClass !== Object && newBaseClass.name) {\n          baseClass = newBaseClass;\n        } else {\n          break;\n        }\n      }\n\n      return baseClass.name;\n    }\n    \n    return null;\n  }\n  \n  /**\n   * @param {AbstractComponent} components\n   *\n   * @returns {Promise}\n   */\n  components(...components) {\n    this.emit(events.components.load, ...components);\n    \n    if (components.length <= 0) {\n      return Promise.resolve();\n    }\n    \n    return Promise.all(components.map(component => {\n      if (!(component instanceof AbstractComponent) \n        && [ 'ConfigBasedComponent', 'AbstractComponent' ]\n          .indexOf(this._getBaseClass(component.constructor)) === -1) {\n        \n        return Promise.reject(new Error(\n          `Component ${ component.constructor.name } should be an instance of AbstractComponent`\n        ));\n      }\n      \n      component.setLogger(logger);\n      this._components.push(component);\n      this.emit(events.component.load, component);\n      \n      return component.subscribe(this)\n        .then(() => {\n          this.emit(events.component.subscribe, component, this);\n        })\n        .then(() => component.ready())\n        .then(() => {\n          this.emit(events.component.ready, component);\n          \n          return Promise.resolve(component);\n        });\n    }));\n  }\n  \n  /**\n   * @param {string} configFile\n   * @param {*} extendConfigs\n   *\n   * @returns {Promise}\n   */\n  configureExtend(configFile, ...extendConfigs) {\n    if (extendConfigs.length <= 0) {\n      return this.configure(configFile);\n    }\n    \n    const promises = extendConfigs.concat([ configFile ])\n      .map(cfgFile => configFactory.guess(cfgFile).load());\n    \n    return Promise.all(promises).then(configVector => {\n      const consolidatedConfig = merge.recursive(true, ...configVector);\n      \n      return this._configLoad(consolidatedConfig, configFile);\n    });\n  }\n  \n  /**\n   * @param {string} configFile\n   *\n   * @returns {Promise}\n   */\n  configure(configFile = Recink.CONFIG_FILE) {\n    return configFactory.guess(configFile)\n      .load()\n      .then(config => this._configLoad(config, configFile));\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _configLoad(config, configFile) {\n    return this.emitBlocking(events.config.preprocess, config)\n      .then(() => {\n        this._config = config;\n        this._container.reload(this._config);\n        \n        this.emit(events.config.load, this.container, configFile);\n        \n        return Promise.resolve(config);\n      });\n  }\n  \n  /**\n   * @param {string} name\n   *\n   * @returns {AbstractComponent}\n   */\n  component(name) {\n    return this._components.filter(c => c.name === name)[0] || null;\n  }\n  \n  /**\n   * @returns {AbstractComponent[]}\n   */\n  listComponents() {\n    return this._components;\n  }\n  \n  /**\n   * @returns {Container}\n   */\n  get container() {\n    return this._container;\n  }\n  \n  /**\n   * @returns {AbstractConfig}\n   */\n  get config() {\n    return this._config;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get CONFIG_FILE() {\n    return path.resolve(process.cwd(), this.CONFIG_FILE_NAME);\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get CONFIG_FILE_NAME() {\n    return '.recink.yml';\n  }\n}\n\nmodule.exports = Recink;\n",
+    "content": "'use strict';\n\nconst path = require('path');\nconst Emitter = require('./emitter');\nconst events = require('./events');\nconst configFactory = require('./config/factory');\nconst Container = require('./container');\nconst AbstractComponent = require('./component/abstract-component');\nconst logger = require('./logger');\nconst merge = require('merge');\n\n/**\n * Recink entry point\n */\nclass Recink extends Emitter {\n  constructor() {\n    super();\n    \n    this._config = {};\n    this._components = [];\n    this._container = new Container();\n    \n    this._registerDebugers();\n  }\n  \n  /**\n   * @private\n   */\n  _registerDebugers() {\n    this.on(events.config.load, (container, configFile) => {\n      logger.info(logger.emoji.smiley, `Load config from ${ configFile }`);\n      logger.debug(container.dump());\n    });\n    \n    this.on(events.components.load, (...components) => {\n      logger.debug(\n        'Loading components -',\n        components.map(c => c.name).join(', ') || 'None'\n      );\n    });\n    \n    this.on(events.component.load, component => {\n      logger.debug(`Load component ${ component.name }`);\n    });\n    \n    this.on(events.component.subscribe, component => {\n      logger.debug(`Component ${ component.name } is subscribed`);\n    });\n    \n    this.on(events.component.ready, component => {\n      logger.debug(`Component ${ component.name } is ready`);\n    });\n    \n    this.on(events.components.run, (...components) => {\n      components.map(component => {\n        logger.info(\n          component.isActive ? logger.emoji.check : logger.emoji.cross,\n          `${ component.name.toUpperCase() } component`\n        );\n      });\n    });\n  }\n  \n  /**\n   * @returns {Promise}\n   */\n  run() {\n    this.emit(events.components.run, ...this._components);\n    \n    const activeComponents = this._components\n      .filter(component => component.isActive);\n      \n    if (activeComponents.length <= 0) {\n      return Promise.resolve();\n    }\n\n    return Promise.all(activeComponents.map(component => {\n      this.emit(events.component.init, component);\n      \n      return component.init(this);\n    }))\n      .then(() => {\n        return Promise.all(activeComponents.map(component => {\n          this.emit(events.component.run, component);\n        \n          return component.run(this);\n        }));\n      })\n      .then(() => {\n        return Promise.all(this._components.map(component => {\n          this.emit(events.component.teardown, component);\n        \n          return component.teardown(this);\n        }));\n      });\n  }\n  \n  /**\n   * @param {Function} targetClass\n   *\n   * @returns {string}\n   *\n   * @private\n   */\n  _getBaseClass(targetClass) {\n    if (targetClass instanceof Function) {\n      let baseClass = targetClass;\n\n      while (baseClass) {\n        const newBaseClass = Object.getPrototypeOf(baseClass);\n\n        if (newBaseClass && newBaseClass !== Object && newBaseClass.name) {\n          baseClass = newBaseClass;\n        } else {\n          break;\n        }\n      }\n\n      return baseClass.name;\n    }\n    \n    return null;\n  }\n  \n  /**\n   * @param {AbstractComponent} components\n   *\n   * @returns {Promise}\n   */\n  components(...components) {\n    this.emit(events.components.load, ...components);\n    \n    if (components.length <= 0) {\n      return Promise.resolve();\n    }\n    \n    return Promise.all(components.map(component => {\n      if (!(component instanceof AbstractComponent) \n        && [ 'ConfigBasedComponent', 'AbstractComponent' ]\n          .indexOf(this._getBaseClass(component.constructor)) === -1) {\n        \n        return Promise.reject(new Error(\n          `Component ${ component.constructor.name } should be an instance of AbstractComponent`\n        ));\n      }\n      \n      component.setLogger(logger);\n      this._components.push(component);\n      this.emit(events.component.load, component);\n      \n      return component.subscribe(this)\n        .then(() => {\n          this.emit(events.component.subscribe, component, this);\n        })\n        .then(() => component.ready())\n        .then(() => {\n          this.emit(events.component.ready, component);\n          \n          return Promise.resolve(component);\n        });\n    }));\n  }\n  \n  /**\n   * @param {string} configFile\n   * @param {*} extendConfigs\n   *\n   * @returns {Promise}\n   */\n  configureExtend(configFile, ...extendConfigs) {\n    if (extendConfigs.length <= 0) {\n      return this.configure(configFile);\n    }\n    \n    const promises = extendConfigs.concat([ configFile ])\n      .map(cfgFile => configFactory.guess(cfgFile).load());\n    \n    return Promise.all(promises).then(configVector => {\n      const consolidatedConfig = merge.recursive(true, ...configVector);\n      \n      return this._configLoad(consolidatedConfig, configFile);\n    });\n  }\n  \n  /**\n   * @param {string} configFile\n   *\n   * @returns {Promise}\n   */\n  configure(configFile = Recink.CONFIG_FILE) {\n    return configFactory.guess(configFile)\n      .load()\n      .then(config => this._configLoad(config, configFile));\n  }\n  \n  /**\n   * @param {*} config\n   * @param {string} configFile\n   *\n   * @returns {Promise}\n   * \n   * @private\n   */\n  _configLoad(config, configFile) {\n    return this.emitBlocking(events.config.preprocess, config)\n      .then(() => {\n        this._config = config;\n        this._container.reload(this._config);\n        \n        this.emit(events.config.load, this.container, configFile);\n        \n        return Promise.resolve(config);\n      });\n  }\n  \n  /**\n   * @param {string} name\n   *\n   * @returns {AbstractComponent}\n   */\n  component(name) {\n    return this._components.filter(c => c.name === name)[0] || null;\n  }\n  \n  /**\n   * @returns {AbstractComponent[]}\n   */\n  listComponents() {\n    return this._components;\n  }\n  \n  /**\n   * @returns {Container}\n   */\n  get container() {\n    return this._container;\n  }\n  \n  /**\n   * @returns {AbstractConfig}\n   */\n  get config() {\n    return this._config;\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get CONFIG_FILE() {\n    return path.resolve(process.cwd(), this.CONFIG_FILE_NAME);\n  }\n  \n  /**\n   * @returns {string}\n   */\n  static get CONFIG_FILE_NAME() {\n    return '.recink.yml';\n  }\n}\n\nmodule.exports = Recink;\n",
     "static": true,
     "longname": "src/recink.js",
     "access": null,
@@ -17029,7 +17021,7 @@
     "lineNumber": 1
   },
   {
-    "__docId__": 581,
+    "__docId__": 580,
     "kind": "variable",
     "name": "path",
     "memberof": "src/recink.js",
@@ -17055,7 +17047,7 @@
     }
   },
   {
-    "__docId__": 582,
+    "__docId__": 581,
     "kind": "variable",
     "name": "Emitter",
     "memberof": "src/recink.js",
@@ -17081,7 +17073,7 @@
     }
   },
   {
-    "__docId__": 583,
+    "__docId__": 582,
     "kind": "variable",
     "name": "events",
     "memberof": "src/recink.js",
@@ -17107,7 +17099,7 @@
     }
   },
   {
-    "__docId__": 584,
+    "__docId__": 583,
     "kind": "variable",
     "name": "configFactory",
     "memberof": "src/recink.js",
@@ -17133,7 +17125,7 @@
     }
   },
   {
-    "__docId__": 585,
+    "__docId__": 584,
     "kind": "variable",
     "name": "Container",
     "memberof": "src/recink.js",
@@ -17159,7 +17151,7 @@
     }
   },
   {
-    "__docId__": 586,
+    "__docId__": 585,
     "kind": "variable",
     "name": "AbstractComponent",
     "memberof": "src/recink.js",
@@ -17185,7 +17177,7 @@
     }
   },
   {
-    "__docId__": 587,
+    "__docId__": 586,
     "kind": "variable",
     "name": "logger",
     "memberof": "src/recink.js",
@@ -17211,7 +17203,7 @@
     }
   },
   {
-    "__docId__": 588,
+    "__docId__": 587,
     "kind": "variable",
     "name": "merge",
     "memberof": "src/recink.js",
@@ -17237,7 +17229,7 @@
     }
   },
   {
-    "__docId__": 589,
+    "__docId__": 588,
     "kind": "class",
     "name": "Recink",
     "memberof": "src/recink.js",
@@ -17255,7 +17247,7 @@
     ]
   },
   {
-    "__docId__": 590,
+    "__docId__": 589,
     "kind": "constructor",
     "name": "constructor",
     "memberof": "src/recink.js~Recink",
@@ -17276,7 +17268,7 @@
     "params": []
   },
   {
-    "__docId__": 591,
+    "__docId__": 590,
     "kind": "member",
     "name": "_config",
     "memberof": "src/recink.js~Recink",
@@ -17299,7 +17291,7 @@
     }
   },
   {
-    "__docId__": 592,
+    "__docId__": 591,
     "kind": "member",
     "name": "_components",
     "memberof": "src/recink.js~Recink",
@@ -17322,7 +17314,7 @@
     }
   },
   {
-    "__docId__": 593,
+    "__docId__": 592,
     "kind": "member",
     "name": "_container",
     "memberof": "src/recink.js~Recink",
@@ -17345,7 +17337,7 @@
     }
   },
   {
-    "__docId__": 594,
+    "__docId__": 593,
     "kind": "method",
     "name": "_registerDebugers",
     "memberof": "src/recink.js~Recink",
@@ -17359,7 +17351,7 @@
     "params": []
   },
   {
-    "__docId__": 595,
+    "__docId__": 594,
     "kind": "method",
     "name": "run",
     "memberof": "src/recink.js~Recink",
@@ -17387,7 +17379,7 @@
     }
   },
   {
-    "__docId__": 596,
+    "__docId__": 595,
     "kind": "method",
     "name": "_getBaseClass",
     "memberof": "src/recink.js~Recink",
@@ -17426,7 +17418,7 @@
     }
   },
   {
-    "__docId__": 597,
+    "__docId__": 596,
     "kind": "method",
     "name": "components",
     "memberof": "src/recink.js~Recink",
@@ -17465,7 +17457,7 @@
     }
   },
   {
-    "__docId__": 598,
+    "__docId__": 597,
     "kind": "method",
     "name": "configureExtend",
     "memberof": "src/recink.js~Recink",
@@ -17514,7 +17506,7 @@
     }
   },
   {
-    "__docId__": 599,
+    "__docId__": 598,
     "kind": "method",
     "name": "configure",
     "memberof": "src/recink.js~Recink",
@@ -17553,7 +17545,7 @@
     }
   },
   {
-    "__docId__": 600,
+    "__docId__": 599,
     "kind": "method",
     "name": "_configLoad",
     "memberof": "src/recink.js~Recink",
@@ -17602,7 +17594,7 @@
     }
   },
   {
-    "__docId__": 601,
+    "__docId__": 600,
     "kind": "member",
     "name": "_config",
     "memberof": "src/recink.js~Recink",
@@ -17625,7 +17617,7 @@
     }
   },
   {
-    "__docId__": 602,
+    "__docId__": 601,
     "kind": "method",
     "name": "component",
     "memberof": "src/recink.js~Recink",
@@ -17664,7 +17656,7 @@
     }
   },
   {
-    "__docId__": 603,
+    "__docId__": 602,
     "kind": "method",
     "name": "listComponents",
     "memberof": "src/recink.js~Recink",
@@ -17692,7 +17684,7 @@
     }
   },
   {
-    "__docId__": 604,
+    "__docId__": 603,
     "kind": "get",
     "name": "container",
     "memberof": "src/recink.js~Recink",
@@ -17724,7 +17716,7 @@
     }
   },
   {
-    "__docId__": 605,
+    "__docId__": 604,
     "kind": "get",
     "name": "config",
     "memberof": "src/recink.js~Recink",
@@ -17756,7 +17748,7 @@
     }
   },
   {
-    "__docId__": 606,
+    "__docId__": 605,
     "kind": "get",
     "name": "CONFIG_FILE",
     "memberof": "src/recink.js~Recink",
@@ -17788,7 +17780,7 @@
     }
   },
   {
-    "__docId__": 607,
+    "__docId__": 606,
     "kind": "get",
     "name": "CONFIG_FILE_NAME",
     "memberof": "src/recink.js~Recink",
@@ -17820,7 +17812,7 @@
     }
   },
   {
-    "__docId__": 609,
+    "__docId__": 608,
     "kind": "external",
     "name": "Infinity",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Infinity",
@@ -17832,7 +17824,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 610,
+    "__docId__": 609,
     "kind": "external",
     "name": "NaN",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN",
@@ -17844,7 +17836,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 611,
+    "__docId__": 610,
     "kind": "external",
     "name": "undefined",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/undefined",
@@ -17856,7 +17848,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 612,
+    "__docId__": 611,
     "kind": "external",
     "name": "null",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/null",
@@ -17868,7 +17860,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 613,
+    "__docId__": 612,
     "kind": "external",
     "name": "Object",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
@@ -17880,7 +17872,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 614,
+    "__docId__": 613,
     "kind": "external",
     "name": "object",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object",
@@ -17892,7 +17884,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 615,
+    "__docId__": 614,
     "kind": "external",
     "name": "Function",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
@@ -17904,7 +17896,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 616,
+    "__docId__": 615,
     "kind": "external",
     "name": "function",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function",
@@ -17916,7 +17908,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 617,
+    "__docId__": 616,
     "kind": "external",
     "name": "Boolean",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
@@ -17928,7 +17920,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 618,
+    "__docId__": 617,
     "kind": "external",
     "name": "boolean",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean",
@@ -17940,7 +17932,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 619,
+    "__docId__": 618,
     "kind": "external",
     "name": "Symbol",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol",
@@ -17952,7 +17944,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 620,
+    "__docId__": 619,
     "kind": "external",
     "name": "Error",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error",
@@ -17964,7 +17956,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 621,
+    "__docId__": 620,
     "kind": "external",
     "name": "EvalError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/EvalError",
@@ -17976,7 +17968,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 622,
+    "__docId__": 621,
     "kind": "external",
     "name": "InternalError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/InternalError",
@@ -17988,7 +17980,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 623,
+    "__docId__": 622,
     "kind": "external",
     "name": "RangeError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RangeError",
@@ -18000,7 +17992,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 624,
+    "__docId__": 623,
     "kind": "external",
     "name": "ReferenceError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ReferenceError",
@@ -18012,7 +18004,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 625,
+    "__docId__": 624,
     "kind": "external",
     "name": "SyntaxError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SyntaxError",
@@ -18024,7 +18016,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 626,
+    "__docId__": 625,
     "kind": "external",
     "name": "TypeError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypeError",
@@ -18036,7 +18028,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 627,
+    "__docId__": 626,
     "kind": "external",
     "name": "URIError",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/URIError",
@@ -18048,7 +18040,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 628,
+    "__docId__": 627,
     "kind": "external",
     "name": "Number",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
@@ -18060,7 +18052,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 629,
+    "__docId__": 628,
     "kind": "external",
     "name": "number",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number",
@@ -18072,7 +18064,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 630,
+    "__docId__": 629,
     "kind": "external",
     "name": "Date",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date",
@@ -18084,7 +18076,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 631,
+    "__docId__": 630,
     "kind": "external",
     "name": "String",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
@@ -18096,7 +18088,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 632,
+    "__docId__": 631,
     "kind": "external",
     "name": "string",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String",
@@ -18108,7 +18100,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 633,
+    "__docId__": 632,
     "kind": "external",
     "name": "RegExp",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp",
@@ -18120,7 +18112,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 634,
+    "__docId__": 633,
     "kind": "external",
     "name": "Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array",
@@ -18132,7 +18124,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 635,
+    "__docId__": 634,
     "kind": "external",
     "name": "Int8Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int8Array",
@@ -18144,7 +18136,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 636,
+    "__docId__": 635,
     "kind": "external",
     "name": "Uint8Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array",
@@ -18156,7 +18148,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 637,
+    "__docId__": 636,
     "kind": "external",
     "name": "Uint8ClampedArray",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8ClampedArray",
@@ -18168,7 +18160,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 638,
+    "__docId__": 637,
     "kind": "external",
     "name": "Int16Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int16Array",
@@ -18180,7 +18172,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 639,
+    "__docId__": 638,
     "kind": "external",
     "name": "Uint16Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint16Array",
@@ -18192,7 +18184,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 640,
+    "__docId__": 639,
     "kind": "external",
     "name": "Int32Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Int32Array",
@@ -18204,7 +18196,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 641,
+    "__docId__": 640,
     "kind": "external",
     "name": "Uint32Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint32Array",
@@ -18216,7 +18208,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 642,
+    "__docId__": 641,
     "kind": "external",
     "name": "Float32Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float32Array",
@@ -18228,7 +18220,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 643,
+    "__docId__": 642,
     "kind": "external",
     "name": "Float64Array",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Float64Array",
@@ -18240,7 +18232,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 644,
+    "__docId__": 643,
     "kind": "external",
     "name": "Map",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map",
@@ -18252,7 +18244,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 645,
+    "__docId__": 644,
     "kind": "external",
     "name": "Set",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set",
@@ -18264,7 +18256,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 646,
+    "__docId__": 645,
     "kind": "external",
     "name": "WeakMap",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakMap",
@@ -18276,7 +18268,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 647,
+    "__docId__": 646,
     "kind": "external",
     "name": "WeakSet",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WeakSet",
@@ -18288,7 +18280,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 648,
+    "__docId__": 647,
     "kind": "external",
     "name": "ArrayBuffer",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer",
@@ -18300,7 +18292,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 649,
+    "__docId__": 648,
     "kind": "external",
     "name": "DataView",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView",
@@ -18312,7 +18304,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 650,
+    "__docId__": 649,
     "kind": "external",
     "name": "JSON",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON",
@@ -18324,7 +18316,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 651,
+    "__docId__": 650,
     "kind": "external",
     "name": "Promise",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise",
@@ -18336,7 +18328,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 652,
+    "__docId__": 651,
     "kind": "external",
     "name": "Generator",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
@@ -18348,7 +18340,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 653,
+    "__docId__": 652,
     "kind": "external",
     "name": "GeneratorFunction",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/GeneratorFunction",
@@ -18360,7 +18352,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 654,
+    "__docId__": 653,
     "kind": "external",
     "name": "Reflect",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect",
@@ -18372,7 +18364,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 655,
+    "__docId__": 654,
     "kind": "external",
     "name": "Proxy",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy",
@@ -18385,7 +18377,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 657,
+    "__docId__": 656,
     "kind": "external",
     "name": "CanvasRenderingContext2D",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D",
@@ -18397,7 +18389,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 658,
+    "__docId__": 657,
     "kind": "external",
     "name": "DocumentFragment",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment",
@@ -18409,7 +18401,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 659,
+    "__docId__": 658,
     "kind": "external",
     "name": "Element",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Element",
@@ -18421,7 +18413,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 660,
+    "__docId__": 659,
     "kind": "external",
     "name": "Event",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Event",
@@ -18433,7 +18425,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 661,
+    "__docId__": 660,
     "kind": "external",
     "name": "Node",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/Node",
@@ -18445,7 +18437,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 662,
+    "__docId__": 661,
     "kind": "external",
     "name": "NodeList",
     "externalLink": "https://developer.mozilla.org/en-US/docs/Web/API/NodeList",
@@ -18457,7 +18449,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 663,
+    "__docId__": 662,
     "kind": "external",
     "name": "XMLHttpRequest",
     "externalLink": "https://developer.mozilla.org/en/docs/Web/API/XMLHttpRequest",
@@ -18469,7 +18461,7 @@
     "builtinExternal": true
   },
   {
-    "__docId__": 664,
+    "__docId__": 663,
     "kind": "external",
     "name": "AudioContext",
     "externalLink": "https://developer.mozilla.org/en/docs/Web/API/AudioContext",
